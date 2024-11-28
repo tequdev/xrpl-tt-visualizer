@@ -26,7 +26,7 @@
   },
   "homepage": "https://Transia-RnD.github.io/xrpl-tt-visualizer",
   "dependencies": {
-    "@transia/xrpl": "^2.7.3-alpha.22",
+    "@transia/xrpl": "^2.7.3-alpha.28",
     "react": "^18.2.0",
     "react-app-rewired": "^2.2.1",
     "react-dom": "^18.2.0",
