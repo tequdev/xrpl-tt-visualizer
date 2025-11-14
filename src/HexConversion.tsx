@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import JsonTextArea from "./utils/JsonTextArea";
 import HookTextArea from "./utils/HookTextArea";
-import { encode } from "@transia/xrpl";
-import { DEFAULT_DEFINITIONS } from "@transia/ripple-binary-codec";
+import { encode } from "xahau";
+import { DEFAULT_DEFINITIONS } from "xahau-binary-codec";
 
 function formatHexString(hexString: string): string {
   // Pad the string with leading zeros if it's not an even length
