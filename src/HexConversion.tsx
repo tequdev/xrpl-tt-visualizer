@@ -251,26 +251,13 @@ function addToMacroDict(field: string, type: string, header_length: number, offs
 }
 
 function additionalOffset(field: string, type: string, header_length: number) {
-  console.log(field, type);
   switch (type) {
-    case 'Amount':
-      if (field === 'Fee') {
-        return 1;
-      }
-      return 0;
     case 'AccountID':
       return header_length + 1 /* + length(0x14) */; 
     case 'STArray':
-      if (field === 'EmitDetails') {
+      if (field === 'EmitDetails')
         return 0;
-      }
       return header_length; // TODO: check if this is correct
-    case 'UInt32':
-      if (field === 'Flags') {
-        return 1;
-      }
-      return header_length;
-    
     default:
       return header_length;
   }
