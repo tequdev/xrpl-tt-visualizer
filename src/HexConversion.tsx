@@ -303,7 +303,7 @@ console.log(getAdditionalArgs('TakerPays', 0));
 const HexConversion: React.FC = () => {
   const [hexOutput, setHexOutput] = useState<string>("");
   let IOUFields: string[] = [];
-  const handleOnConvert = (json: any) => {
+  const handleOnConvert = (json: any, hasCallback: boolean) => {
     const jsonData = addDefaultFields(JSON.parse(json))
     let macroDict: Record<string, { name: string; offset: number; arg: string }> = {}
     let byteTotal = 0
@@ -339,7 +339,7 @@ const HexConversion: React.FC = () => {
       offset += byteLength
     });
 
-    const emitTotal = 116
+    const emitTotal = hasCallback ? 138: 116
 
     byteTotal += emitTotal
     
@@ -397,7 +397,7 @@ const HexConversion: React.FC = () => {
     SET_UINT32(FLS_OUT, fls);                                                  \\
     SET_UINT32(LLS_OUT, fls + 4);                                              \\
     hook_account(ACCOUNT_OUT, 20);                                             \\
-    etxn_details(EMIT_OUT, 116U);                                              \\
+    etxn_details(EMIT_OUT, ${emitTotal}U);                                              \\
     int64_t fee = etxn_fee_base(SBUF(txn));                                    \\
     SET_NATIVE_AMOUNT(FEE_OUT, fee);                                           \\
     TRACEHEX(txn);                                                             \\

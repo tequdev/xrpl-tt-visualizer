@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 
 // Define the shape of the results prop
 type JsonTextAreaProps = {
-    onConvert: (json: any) => void;
-  };
+  onConvert: (json: any, hasCallback: boolean) => void;
+};
 
 const JsonTextArea = ({ onConvert }: JsonTextAreaProps) => {
   const [jsonText, setJsonText] = useState('');
+  const [hasCallback, setHasCallback] = useState(false);
   const [isValidJson, setIsValidJson] = useState(false);
 
   const handleJsonChange = (event: any) => {
@@ -27,7 +28,7 @@ const JsonTextArea = ({ onConvert }: JsonTextAreaProps) => {
     event.preventDefault();
     if (isValidJson) {
       // Handle the submission of valid JSON data
-      onConvert(jsonText)
+      onConvert(jsonText, hasCallback)
     } else {
     //   alert('The JSON is invalid. Please correct it before submitting.');
     }
@@ -45,6 +46,12 @@ const JsonTextArea = ({ onConvert }: JsonTextAreaProps) => {
       />
       <div>
         {jsonText && !isValidJson && <span style={{ color: 'red' }}>Invalid JSON format!</span>}
+      </div>
+      <div>
+        <label>
+          <input type="checkbox" checked={hasCallback} onChange={() => setHasCallback(!hasCallback)} />
+          Has cbak()
+        </label>
       </div>
       <button type="submit" disabled={!isValidJson}>
         Convert to Hook Tx
