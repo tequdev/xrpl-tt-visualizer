@@ -38,7 +38,12 @@ function formatEmptyType(field: string, type: string, encoded: string): string {
         case 'Fee':
           return `${formatHexString(encoded.slice(0, 4))} 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,`
         default:
-          return `${formatHexString(encoded.slice(0, 2))} 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U,`
+          if (encoded.length <= 10 * 2 /* 10 bytes or less (header 1 or 2bytes + 8 bytes) */) {
+            // return formatHexString(encoded)
+            return `${formatHexString(encoded.slice(0, 4))} 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,`
+          } else {
+            return `${formatHexString(encoded.slice(0, 2))} 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U,`
+          }
       }
     case 'Blob':
       return `${formatHexString(encoded.slice(0, 4))} 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,`
@@ -173,7 +178,7 @@ function abbreviateCamelCase(variableName: string, limit: number = 4): string {
     case 'EmitDetails':
       return "EMIT_OUT";
     default:
-      return "_OUT";
+      return variableName.toUpperCase() + "_OUT";
   }
 }
 
@@ -235,49 +240,50 @@ const approveList = [
   'Paths', // Payment
   'EmitDetails',
 ]
-function addToMacroDict(field: string, type: string, offset: number): any {  
-  if (approveList.includes(field) && !nonApproveList.includes(field)) {
+function addToMacroDict(field: string, type: string, header_length: number, offset: number) {  
+  if (!nonApproveList.includes(field)) {
     return {
       name: abbreviateCamelCase(field),
-      offset: offset + additionalOffset(field, type),
+      offset: offset + additionalOffset(field, type, header_length),
       arg: `${camelToSnake(field)}`
     }
   }
 }
 
-function additionalOffset(field: string, type: string): any {
+function additionalOffset(field: string, type: string, header_length: number) {
+  console.log(field, type);
   switch (type) {
     case 'Amount':
       if (field === 'Fee') {
         return 1;
       }
       return 0;
+    case 'AccountID':
+      return header_length + 1 /* + length(0x14) */; 
     case 'STArray':
       if (field === 'EmitDetails') {
         return 0;
       }
-      return 2;
+      return header_length; // TODO: check if this is correct
     case 'UInt32':
       if (field === 'Flags') {
         return 1;
       }
-      return 2;
+      return header_length;
+    
     default:
-      return 2;
+      return header_length;
   }
 }
 
-const omitList = [
+const autofilltList = [
+  'Account',
   'Fee',
   'EmitDetails',
   'FirstLedgerSequence',
   'LastLedgerSequence',
   'Flags',
 ]
-
-const float48 = (type_out: string, type: string, currency: string, issuer: string, amount: string) => {
-  return `    float_sto(${type_out}, 49, ${currency}, 20, ${issuer}, 20, ${amount}, sf${type}); \\ \n`
-}
 
 function camelToSnake(str: string): string {
   return str.replace(/([A-Z])/g, (match) => `${match.toLowerCase()}`);
@@ -306,27 +312,11 @@ function getAdditionalArgs(field:string, flags: number): any {
 
 console.log(getAdditionalArgs('TakerPays', 0));
 
-
-function parseApiType(out: string, field:string): any {
-  switch (field) {
-    case 'Account':
-      return `    ACCOUNT_TO_BUF(${out}, account_buffer); \\ \n`
-    case 'LimitAmount':
-      return float48(out, field, 'currency_buffer', 'issuer_buffer', 'amount_xfl')
-    case 'TakerGets':
-      return float48(out, field, 'currency_buffer', 'issuer_buffer', 'amount_xfl')
-    case 'TakerPays':
-      return float48(out, field, 'currency_buffer', 'issuer_buffer', 'amount_xfl')
-    default:
-      return null;
-  }
-}
-
 const HexConversion: React.FC = () => {
   const [hexOutput, setHexOutput] = useState<string>("");
   const handleOnConvert = (json: any) => {
     const jsonData = addDefaultFields(JSON.parse(json))
-    let macroDict: any = {}
+    let macroDict: Record<string, { name: string; offset: number; arg: string }> = {}
     let byteTotal = 0
     let offset = 0
     const tarray: string[] = []
@@ -340,13 +330,15 @@ const HexConversion: React.FC = () => {
       const field = DEFAULT_DEFINITIONS.field[key as string].name
       // @ts-ignore
       const type = DEFAULT_DEFINITIONS.field[key as string].type.name
+      
+      const header_length = DEFAULT_DEFINITIONS.field.fromString(key).header.length
 
       const byteLength = encoded.length / 2
 
       // @ts-ignore
       tarray.push(formatField(jsonData[key], field, type, byteLength, offset, encoded))
       
-      const result = addToMacroDict(field, type, offset)
+      const result = addToMacroDict(field, type,  header_length, offset)
       if (result) {
         macroDict[field] = result
       }
@@ -359,92 +351,189 @@ const HexConversion: React.FC = () => {
 
     byteTotal += emitTotal
     
-    let text = ""
-    text += "// clang-format off \n"
-    text += `uint8_t txn[${byteTotal}] =\n`
-    text += "{\n"
-    text += "/* size,upto */\n"
+    enum TEXT_INDEX {
+      TXN = 0,
+      TX_BUILDER = 1,
+      MACROS = 2,
+      SET_FIELDS = 3,
+      EMIT = 4,
+      PREPARE_TXN = 5,
+      SAMPLES = 6,
+    }
+    
+    let texts: string[] = Array(7).fill('')
+    texts[TEXT_INDEX.TXN] += "// clang-format off\n"
+    texts[TEXT_INDEX.TXN] += `uint8_t txn[${byteTotal}] =\n`
+    texts[TEXT_INDEX.TXN] += "{\n"
+    texts[TEXT_INDEX.TXN] += "/* size,upto */\n"
     for (let i = 0; i < tarray.length; i++) {
       const t = tarray[i];
-      text += t
+      texts[TEXT_INDEX.TXN] += t
     }
-    const result = addToMacroDict('EmitDetails', 'STArray', offset)
+    const result = addToMacroDict('EmitDetails', 'STArray', 0, offset)
     macroDict['EmitDetails'] = result
-    text += `/* ${emitTotal}, ${offset}  emit details        */ \n`
+    texts[TEXT_INDEX.TXN] += `/* ${emitTotal}, ${offset}  emit details        */ \n`
     offset += emitTotal
-    text += `/* 0,   ${offset}                      */ \n`
-    text += "};\n"
-    text += "// clang-format on\n"
-    text += "\n"
-    text += "\n"
-    text += "// TX BUILDER \n"
+    texts[TEXT_INDEX.TXN] += `/* 0,   ${offset}                      */ \n`
+    texts[TEXT_INDEX.TXN] += "};\n"
+    texts[TEXT_INDEX.TXN] += "// clang-format on\n\n"
+
+    texts[TEXT_INDEX.TX_BUILDER] += "// TX BUILDER\n"
 
     console.log(macroDict);
     
     Object.keys(macroDict).forEach((key) => {
       const value = macroDict[key]
-      text += `#define ${value.name} (txn + ${value.offset}U) \n`
+      texts[TEXT_INDEX.TX_BUILDER] += `#define ${value.name} (txn + ${value.offset}U)\n`
     })
 
-    const args: any = {}
+    const args: Record<string, { name: string; offset: number; arg: string }> = {}
     Object.keys(macroDict).forEach((key) => {
-      if (!omitList.includes(key)) {
+      if (!autofilltList.includes(key)) {
         args[key] = macroDict[key]
       }
     })
 
-    console.log(args);
+    // console.log(args);
+
+
+    texts[TEXT_INDEX.PREPARE_TXN] += `
+#define PREPARE_TXN()                                                          \\
+  do {                                                                         \\
+    etxn_reserve(1);                                                           \\
+    uint32_t fls = (uint32_t)ledger_seq() + 1;                                 \\
+    SET_UINT32(FLS_OUT, fls);                                                  \\
+    SET_UINT32(LLS_OUT, fls + 4);                                              \\
+    hook_account(ACCOUNT_OUT, 20);                                             \\
+    etxn_details(EMIT_OUT, 116U);                                              \\
+    int64_t fee = etxn_fee_base(SBUF(txn));                                    \\
+    SET_NATIVE_AMOUNT(FEE_OUT, fee);                                           \\
+    TRACEHEX(txn);                                                             \\
+  } while (0)
+`
+
+    texts[TEXT_INDEX.SAMPLES] += "\n/* \n"
+    const filterArgsByFieldType = (type: string) => Object.keys(args).filter((name) => DEFAULT_DEFINITIONS.field.fromString(name).type.name === type)
+    const uint16Fields = filterArgsByFieldType("UInt16")
+    if (uint16Fields.length > 0) {
+      texts[TEXT_INDEX.MACROS] += `
+#define FLIP_ENDIAN_16(value)                                                  \\
+  (uint16_t)(((value & 0xFFU) << 8) | ((value & 0xFF00U) >> 8))
+`
+      texts[TEXT_INDEX.SET_FIELDS] += `
+#define SET_UINT16(ptr, value) *((uint16_t *)(ptr)) = FLIP_ENDIAN_16(value);
+`
+      for (const field of uint16Fields) {
+        texts[TEXT_INDEX.SAMPLES] += `SET_UINT16(${abbreviateCamelCase(field)}, 0); \n`
+      }
+    }
+    const uint32Fields = filterArgsByFieldType("UInt32")
+    if (uint32Fields.length > 0 || true /* force as FLS and LLS */) {
+      texts[TEXT_INDEX.MACROS] += `
+#define FLIP_ENDIAN_32(value)                                                  \\
+  (uint32_t)(((value & 0xFFU) << 24) | ((value & 0xFF00U) << 8) |              \\
+             ((value & 0xFF0000U) >> 8) | ((value & 0xFF000000U) >> 24))
+`
+      texts[TEXT_INDEX.SET_FIELDS] += `
+#define SET_UINT32(ptr, value) *((uint32_t *)(ptr)) = FLIP_ENDIAN_32(value);
+`
+      for (const field of uint32Fields) {
+        texts[TEXT_INDEX.SAMPLES] += `SET_UINT32(${abbreviateCamelCase(field)}, 0);\n`
+      }
+    }
+    const uint64Fields = filterArgsByFieldType("UInt64") // not transaction fields
+    if (uint64Fields.length > 0) {
+      texts[TEXT_INDEX.MACROS] += `
+#define FLIP_ENDIAN_64(value)                                                  \\
+  (uint64_t)(((value & 0xFFU) << 56) | ((value & 0xFF00U) << 48) |             \\
+             ((value & 0xFF0000U) << 40) | ((value & 0xFF000000U) << 32) |     \\
+             ((value & 0xFF00000000U) << 24) |                                 \\
+             ((value & 0xFF0000000000U) << 16) |                               \\
+             ((value & 0xFF000000000000U) << 8) |                              \\
+             ((value & 0xFF00000000000000U) >> 0))
+`
+      texts[TEXT_INDEX.SET_FIELDS] += "#define SET_UINT64(ptr, value) * ((uint64_t *)(ptr)) = FLIP_ENDIAN_64(value); \n"
+      for (const field of uint64Fields) {
+        texts[TEXT_INDEX.SAMPLES] += `SET_UINT64(${abbreviateCamelCase(field)}, 0);\n`
+      }
+    }
+    // const hash128Fields = filterArgsByFieldType("Hash128")
+    const hash256Fields = filterArgsByFieldType("Hash256")
+    if (hash256Fields.length > 0) {
+      texts[TEXT_INDEX.SET_FIELDS] += `
+#define SET_HASH256(ptr_to, ptr_from)                                          \\
+  {                                                                            \\
+    const unsigned char *buf_from = (const unsigned char *)ptr_from;           \\
+    unsigned char *buf_to = (unsigned char *)ptr_to;                           \\
+    *(uint64_t *)(buf_to + 0) = *(const uint64_t *)(buf_from + 0);             \\
+    *(uint64_t *)(buf_to + 8) = *(const uint64_t *)(buf_from + 8);             \\
+    *(uint64_t *)(buf_to + 16) = *(const uint64_t *)(buf_from + 16);           \\
+    *(uint64_t *)(buf_to + 24) = *(const uint64_t *)(buf_from + 24);           \\
+  }
+`
+      for (const field of hash256Fields) {
+        texts[TEXT_INDEX.SAMPLES] += `uint8_t hash[32]; \n`
+        texts[TEXT_INDEX.SAMPLES] += `SET_HASH256(${abbreviateCamelCase(field)}, hash);\n`
+      }
+    }
+    const amountFields = filterArgsByFieldType("Amount")
+    if (amountFields.length > 0 || true /* force as Fee */) {
+    texts[TEXT_INDEX.SET_FIELDS] += `
+#define SET_NATIVE_AMOUNT(ptr, amount)                                         \\
+  do {                                                                         \\
+    uint8_t *b = (ptr);                                                        \\
+    *b++ = 0b01000000 + ((amount >> 56) & 0b00111111);                         \\
+    *b++ = (amount >> 48) & 0xFFU;                                             \\
+    *b++ = (amount >> 40) & 0xFFU;                                             \\
+    *b++ = (amount >> 32) & 0xFFU;                                             \\
+    *b++ = (amount >> 24) & 0xFFU;                                             \\
+    *b++ = (amount >> 16) & 0xFFU;                                             \\
+    *b++ = (amount >> 8) & 0xFFU;                                              \\
+    *b++ = (amount >> 0) & 0xFFU;                                              \\
+  } while (0)
+`
+      for (const field of amountFields) {
+        texts[TEXT_INDEX.SAMPLES] += `SET_NATIVE_AMOUNT(${abbreviateCamelCase(field)}, 0);\n`
+      }
+    }
+    // const blobFields = filterArgsByFieldType("Blob")
+    const accountFields = filterArgsByFieldType("AccountID")
+    if (accountFields.length > 0) {
+      texts[TEXT_INDEX.SET_FIELDS] += `
+#define SET_ACCOUNT(ptr_to, ptr_from)                                          \\
+  {                                                                            \\
+    unsigned char *buf_to = (unsigned char *)ptr_to;                           \\
+    unsigned char *buf_from = (unsigned char *)ptr_from;                       \\
+    *(uint64_t *)(buf_to + 0) = *(uint64_t *)(buf_from + 0);                   \\
+    *(uint64_t *)(buf_to + 8) = *(uint64_t *)(buf_from + 8);                   \\
+    *(uint32_t *)(buf_to + 16) = *(uint32_t *)(buf_from + 16);                 \\
+  }
+`
+      texts[TEXT_INDEX.SAMPLES] += "uint8_t account_buffer[20]; \n"
+      for (const field of accountFields) {
+        texts[TEXT_INDEX.SAMPLES] += `SET_ACCOUNT(${abbreviateCamelCase(field)}, account_buffer);\n`
+      }
+    }
+    // const objectFields = filterArgsByFieldType("STObject")
+    // const arrayFields = filterArgsByFieldType("STArray")
+    const uint8Fields = filterArgsByFieldType("UInt8")
+    if (uint8Fields.length > 0) {
+      texts[TEXT_INDEX.SET_FIELDS] += "#define SET_UINT8(ptr, value) *((uint8_t *)(ptr)) = (value); \n"
+      for (const field of uint8Fields) {
+        texts[TEXT_INDEX.SAMPLES] += `SET_UINT8(${abbreviateCamelCase(field)}, 0);\n`
+      }
+    }
+    // const hash160fields = filterArgsByFieldType("Hash160") // no transaction fields
+    // const pathSetFields = filterArgsByFieldType("PathSet")
+    // const vector256fields = filterArgsByFieldType("Vector256") // URITokenIDs
     
-    
-    text += "\n"
-    text += "\n"
-    text += "#define PREPARE_TXN(currency_buf, issuer_buf, amount_xfl) do { \\ \n"
+    texts[TEXT_INDEX.SAMPLES] += "PREPARE_TXN(); \n"
 
-    // reserve
-    text += "    etxn_reserve(1); \\ \n"
+    texts[TEXT_INDEX.SAMPLES] += "uint8_t emithash[32]; \n"
+    texts[TEXT_INDEX.SAMPLES] += "int64_t emit_result = emit(SBUF(emithash), SBUF(txn)); \n"
+    texts[TEXT_INDEX.SAMPLES] += "*/ \n"
 
-    // fls
-    text += "    uint32_t fls = (uint32_t)ledger_seq() + 1; \\ \n"
-    text += "    *((uint32_t *)(FLS_OUT)) = FLIP_ENDIAN(fls); \\ \n"
-
-    // lls
-    text += "    uint32_t lls = fls + 4; \\ \n"
-    text += "    *((uint32_t *)(LLS_OUT)) = FLIP_ENDIAN(lls); \\ \n"
-
-    Object.keys(args).forEach((key: string) => {
-      text += parseApiType(args[key].name, key)
-    })
-
-    // emit
-    text += "    etxn_details(EMIT_OUT, 116U); \\ \n"
-    // fee
-    text += "    int64_t fee = etxn_fee_base(SBUF(txn)); \\ \n"
-    text += "    uint8_t *b = FEE_OUT; \\ \n"
-    text += "    *b++ = 0b01000000 + ((fee >> 56) & 0b00111111); \\ \n"
-    text += "    *b++ = (fee >> 48) & 0xFFU; \\ \n"
-    text += "    *b++ = (fee >> 40) & 0xFFU; \\ \n"
-    text += "    *b++ = (fee >> 32) & 0xFFU; \\ \n"
-    text += "    *b++ = (fee >> 24) & 0xFFU; \\ \n"
-    text += "    *b++ = (fee >> 16) & 0xFFU; \\ \n"
-    text += "    *b++ = (fee >> 8) & 0xFFU; \\ \n"
-    text += "    *b++ = (fee >> 0) & 0xFFU; \\ \n"
-    text += "    TRACEHEX(txn); \\ \n"
-    text += "} while(0) \n"
-
-    text += "\n"
-    text += "\n"
-
-    text += "/* \n"
-    text += "uint8_t currency_buffer [20]; \n"
-    text += "uint8_t issuer_buffer [20]; \n"
-    text += "uint64_t amount_xfl = ??; \n"
-    text += "PREPARE_TXN(currency_buf, issuer_buf, amount_xfl); \n"
-    text += "\n"
-    text += "uint8_t emithash[32]; \n"
-    text += "int64_t emit_result = emit(SBUF(emithash), SBUF(txn)); \n"
-    text += "*/ \n"
-
-    setHexOutput(text)
+    setHexOutput(texts.join(''))
   };
 
   return (
