@@ -480,7 +480,7 @@ const HexConversion: React.FC = () => {
   } while (0)
 `
       for (const field of amountFields) {
-        texts[TEXT_INDEX.SAMPLES] += `SET_NATIVE_AMOUNT(${abbreviateCamelCase(field)}, 0);\n`
+        texts[TEXT_INDEX.SAMPLES] += `SET_NATIVE_AMOUNT(${abbreviateCamelCase(field)}, 100);\n`
       }
     }
     // const blobFields = filterArgsByFieldType("Blob")
