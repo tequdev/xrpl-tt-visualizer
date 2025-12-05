@@ -64,8 +64,8 @@ function formatEmptyType(field: string, type: string, encoded: string): string {
 
 function formatField(value: string, field: string, type: string, byteLength: string, offset: string, encoded: string): string {
   let abbrv = formatAbbrv(value, field)
-  abbrv += " ".padEnd(24 - (abbrv.length + String(byteLength).length + String(offset).length))
-  return `/* ${byteLength},  ${offset}, ${abbrv} */   ${formatEmptyType(field, type, encoded)}\n`
+  abbrv += " ".padEnd(24 - (abbrv.length))
+  return `/*  ${byteLength.toString().padStart(3,' ')},  ${offset.toString().padStart(3,' ')}, ${abbrv} */   ${formatEmptyType(field, type, encoded)}\n`
 }
 
 function addDefaultFields(jsonData: any): any {
@@ -357,16 +357,16 @@ const HexConversion: React.FC = () => {
     texts[TEXT_INDEX.TXN] += "// clang-format off\n"
     texts[TEXT_INDEX.TXN] += `uint8_t txn[${byteTotal}] =\n`
     texts[TEXT_INDEX.TXN] += "{\n"
-    texts[TEXT_INDEX.TXN] += "/* size,upto */\n"
+    texts[TEXT_INDEX.TXN] += "/* size, upto, field name               */\n"
     for (let i = 0; i < tarray.length; i++) {
       const t = tarray[i];
       texts[TEXT_INDEX.TXN] += t
     }
     const result = addToMacroDict('EmitDetails', 'STArray', 0, offset)
     macroDict['EmitDetails'] = result
-    texts[TEXT_INDEX.TXN] += `/* ${emitTotal}, ${offset}  emit details        */ \n`
+    texts[TEXT_INDEX.TXN] += `/*  ${emitTotal},  ${offset.toString().padStart(3,' ')}, emit details             */ \n`
     offset += emitTotal
-    texts[TEXT_INDEX.TXN] += `/* 0,   ${offset}                      */ \n`
+    texts[TEXT_INDEX.TXN] += `/*    0,  ${offset.toString().padStart(3,' ')},                          */ \n`
     texts[TEXT_INDEX.TXN] += "};\n"
     texts[TEXT_INDEX.TXN] += "// clang-format on\n\n"
 
