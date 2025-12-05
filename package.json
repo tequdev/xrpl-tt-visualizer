@@ -24,7 +24,10 @@
       "last 1 safari version"
     ]
   },
-  "homepage": "https://Transia-RnD.github.io/xrpl-tt-visualizer",
+  "author": {
+    "name": "Denis Angell",
+    "url": "https://github.com/Transia-RnD"
+  },
   "dependencies": {
     "react": "^18.2.0",
     "react-app-rewired": "^2.2.1",
