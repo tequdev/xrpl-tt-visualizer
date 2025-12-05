@@ -54,8 +54,8 @@ function formatEmptyType(field: string, type: string, encoded: string): string {
       return `0x73U, 0x21U, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,`
     default:
       switch (field) {
-        case 'DestinationTag':
-          return `0x99U, 0x99U, 0x99U, 0x99U, 0x99U,`
+        // case 'DestinationTag':
+        //   return `0x99U, 0x99U, 0x99U, 0x99U, 0x99U,`
         default:
           return formatHexString(encoded)
       }
