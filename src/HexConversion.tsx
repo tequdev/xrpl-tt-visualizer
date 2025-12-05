@@ -42,7 +42,8 @@ function formatEmptyType(field: string, type: string, encoded: string): string {
             // return formatHexString(encoded)
             return `${formatHexString(encoded.slice(0, 4))} 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,`
           } else {
-            return `${formatHexString(encoded.slice(0, 2))} 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U,`
+            return formatHexString(encoded)
+            // return `${formatHexString(encoded.slice(0, 2))} 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U,`
           }
       }
     case 'Blob':
@@ -301,6 +302,7 @@ console.log(getAdditionalArgs('TakerPays', 0));
 
 const HexConversion: React.FC = () => {
   const [hexOutput, setHexOutput] = useState<string>("");
+  let IOUFields: string[] = [];
   const handleOnConvert = (json: any) => {
     const jsonData = addDefaultFields(JSON.parse(json))
     let macroDict: Record<string, { name: string; offset: number; arg: string }> = {}
@@ -329,6 +331,9 @@ const HexConversion: React.FC = () => {
       if (result) {
         macroDict[field] = result
       }
+
+      if (type === 'Amount' && encoded.length > 10 * 2)
+        IOUFields.push(field);
 
       byteTotal += byteLength
       offset += byteLength
@@ -479,8 +484,32 @@ const HexConversion: React.FC = () => {
     *b++ = (amount >> 0) & 0xFFU;                                              \\
   } while (0)
 `
+      if (IOUFields.length > 0)
+       texts[TEXT_INDEX.SET_FIELDS] += `
+#define SET_IOU_AMOUNT(ptr, issuer, currency, amount_xfl)                      \\
+  do {                                                                         \\
+    uint8_t *b = (ptr);                                                        \\
+    *b++ = 0b11000000 + ((amount_xfl >> 56) & 0b00111111);                     \\
+    *b++ = (amount_xfl >> 48) & 0xFFU;                                         \\
+    *b++ = (amount_xfl >> 40) & 0xFFU;                                         \\
+    *b++ = (amount_xfl >> 32) & 0xFFU;                                         \\
+    *b++ = (amount_xfl >> 24) & 0xFFU;                                         \\
+    *b++ = (amount_xfl >> 16) & 0xFFU;                                         \\
+    *b++ = (amount_xfl >> 8) & 0xFFU;                                          \\
+    *b++ = (amount_xfl >> 0) & 0xFFU;                                          \\
+    *(uint64_t *)(b + 0) = *(uint64_t *)(currency + 0);                        \\
+    *(uint64_t *)(b + 8) = *(uint64_t *)(currency + 8);                        \\
+    *(uint32_t *)(b + 16) = *(uint32_t *)(currency + 16);                      \\
+    *(uint64_t *)(b + 24) = *(uint64_t *)(issuer + 0);                         \\
+    *(uint64_t *)(b + 32) = *(uint64_t *)(issuer + 8);                         \\
+    *(uint32_t *)(b + 40) = *(uint32_t *)(issuer + 16);                        \\
+  } while (0)
+`
       for (const field of amountFields) {
-        texts[TEXT_INDEX.SAMPLES] += `SET_NATIVE_AMOUNT(${abbreviateCamelCase(field)}, 100);\n`
+        if (!IOUFields.includes(field))
+          texts[TEXT_INDEX.SAMPLES] += `SET_NATIVE_AMOUNT(${abbreviateCamelCase(field)}, 100);\n`
+        else
+          texts[TEXT_INDEX.SAMPLES] += `SET_IOU_AMOUNT(${abbreviateCamelCase(field)}, issuer_buffer, currency_buffer, amount_xfl);\n`
       }
     }
     // const blobFields = filterArgsByFieldType("Blob")
