@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main
+      - tequ
   pull_request:
   workflow_dispatch:
 
@@ -33,7 +33,7 @@ jobs:
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/tequ'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build
