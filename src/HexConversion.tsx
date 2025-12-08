@@ -1,71 +1,17 @@
 import React, { useState } from "react";
 import JsonTextArea from "./utils/JsonTextArea";
 import HookTextArea from "./utils/HookTextArea";
-import { encode } from "xahau";
 import { DEFAULT_DEFINITIONS } from "xahau-binary-codec";
+import { EncodedValue, EncodedValues, txJsonToEncodedValues } from "./utils/txJsonToEncodedValues";
 
-function formatHexString(hexString: string): string {
-  // Pad the string with leading zeros if it's not an even length
-  if (hexString.length % 2 !== 0) {
-      hexString = '0' + hexString;
-  }
 
-  // Split the string into pairs of two characters
-  const pairs = hexString.match(/.{1,2}/g);
-
-  // Format each pair as "0xXXU"
-  const formattedPairs = pairs?.map(pair => `0x${pair.toUpperCase()}U`);
-
-  // Join the formatted pairs with a comma and a space
-  return formattedPairs?.join(', ') + ',';
-}
-
-function formatAbbrv(value: string, type: string): string {
-  switch (type) {
+function formatAbbrv(fieldStringValue: string, fieldName: string): string {
+  switch (fieldName) {
     case 'TransactionType':
-      return `tt = ${value}`
+      return `tt = ${fieldStringValue}`
     default:
-      return type.toLowerCase()
+      return fieldName.toLowerCase()
   }
-}
-
-function formatEmptyType(field: string, type: string, encoded: string): string {
-  switch (type) {
-    case 'AccountID':
-      return `${formatHexString(encoded.slice(0, 4))} 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,`
-    case 'Amount':
-      switch (field) {
-        case 'Fee':
-          return `${formatHexString(encoded.slice(0, 4))} 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,`
-        default:
-          if (encoded.length <= 10 * 2 /* 10 bytes or less (header 1 or 2bytes + 8 bytes) */) {
-            // return formatHexString(encoded)
-            return `${formatHexString(encoded.slice(0, 4))} 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,`
-          } else {
-            return formatHexString(encoded)
-            // return `${formatHexString(encoded.slice(0, 2))} 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U, 0x99U,`
-          }
-      }
-    case 'Blob':
-      return `${formatHexString(encoded.slice(0, 4))} 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,`
-    case 'Hash256':
-      return `${formatHexString(encoded.slice(0, 4))} 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,`
-    case 'SigningPubKey':
-      return `0x73U, 0x21U, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,`
-    default:
-      switch (field) {
-        // case 'DestinationTag':
-        //   return `0x99U, 0x99U, 0x99U, 0x99U, 0x99U,`
-        default:
-          return formatHexString(encoded)
-      }
-  }
-}
-
-function formatField(value: string, field: string, type: string, byteLength: number, offset: number, encoded: string): string {
-  let abbrv = formatAbbrv(value, field)
-  abbrv += " ".padEnd(24 - (abbrv.length))
-  return `/*  ${byteLength.toString().padStart(3,' ')},  ${offset.toString().padStart(3,' ')}, ${abbrv} */   ${formatEmptyType(field, type, encoded)}\n`
 }
 
 function addDefaultFields(jsonData: any): any {
@@ -108,6 +54,9 @@ function addDefaultFields(jsonData: any): any {
 }
 
 function abbreviateCamelCase(variableName: string, limit: number = 4): string {
+  if (variableName.endsWith('_OUT'))
+    return variableName
+  
   // If the variable name is less than 6 characters, uppercase the whole word and append "_OUT"
   if (variableName.length <= 7) {
     return variableName.toUpperCase() + "_OUT";
@@ -241,26 +190,28 @@ const approveList = [
   'Paths', // Payment
   'EmitDetails',
 ]
-function addToMacroDict(field: string, type: string, header_length: number, offset: number) {  
-  if (!nonApproveList.includes(field)) {
+function addToMacroDict(encoded: EncodedValue, offset: number, parentNames: string[] = []) {  
+  if (encoded.type === 'STArray' || encoded.type === 'STObject') {
+    return null
+  }
+  if (!nonApproveList.includes(encoded.name)) {
     return {
-      name: abbreviateCamelCase(field),
-      offset: offset + additionalOffset(field, type, header_length),
-      arg: `${camelToSnake(field)}`
+      name: encoded.name,
+      out_name: parentNames.length > 0 ? parentNames.map(name => abbreviateCamelCase(name).replace('_OUT', '')).join('_') + '_' + abbreviateCamelCase(encoded.name) : abbreviateCamelCase(encoded.name),
+      offset: offset + additionalOffset(encoded),
     }
   }
+  return null
 }
 
-function additionalOffset(field: string, type: string, header_length: number) {
-  switch (type) {
-    case 'AccountID':
-      return header_length + 1 /* + length(0x14) */; 
+function additionalOffset(encoded: EncodedValue) {
+  switch (encoded.type) {
     case 'STArray':
-      if (field === 'EmitDetails')
+      if (encoded.name === 'EmitDetails')
         return 0;
-      return header_length; // TODO: check if this is correct
+      return encoded.encoded.header.length
     default:
-      return header_length;
+      return encoded.encoded.header.length
   }
 }
 
@@ -272,10 +223,6 @@ const autofilltList = [
   'LastLedgerSequence',
   'Flags',
 ]
-
-function camelToSnake(str: string): string {
-  return str.replace(/([A-Z])/g, (match) => `${match.toLowerCase()}`);
-}
 
 function getAdditionalArgs(field:string, flags: number): any {
   switch (field) {
@@ -305,36 +252,92 @@ const HexConversion: React.FC = () => {
   let IOUFields: string[] = [];
   const handleOnConvert = (json: any, hasCallback: boolean) => {
     const jsonData = addDefaultFields(JSON.parse(json))
-    let macroDict: Record<string, { name: string; offset: number; arg: string }> = {}
+    let macroDict: Record<string, { name: string; out_name: string; offset: number; }> = {}
     let byteTotal = 0
     let offset = 0
     const tarray: string[] = []
-    Object.keys(jsonData).forEach((key) => {
+    
+    const encodedValues = txJsonToEncodedValues(jsonData)
+
+    for (const key in encodedValues) {
       // Perform any additional processing with the key and value here
-      const _json = {} as any
-      _json[key] = jsonData[key]
-      const encoded = encode(_json)
+      const encoded = encodedValues[key]
 
       const field = DEFAULT_DEFINITIONS.field.fromString(key).name
       const type = DEFAULT_DEFINITIONS.field.fromString(key).type.name
-      
-      const header_length = DEFAULT_DEFINITIONS.field.fromString(key).header.length
 
-      const byteLength = encoded.length / 2
-
-      tarray.push(formatField(jsonData[key], field, type, byteLength, offset, encoded))
+      const byteLength = encoded.byteLength
       
-      const result = addToMacroDict(field, type,  header_length, offset)
+      // eslint-disable-next-line no-loop-func
+      const formatFieldComment = (encoded: EncodedValue, prefix: string = '', endMakerPostfix: string = '') => {
+        let abbrv = prefix + formatAbbrv(encoded.stringValue, encoded.name) + endMakerPostfix
+        abbrv += " ".padEnd(24 - (abbrv.length))
+        
+        const byteLength = endMakerPostfix ? 1: encoded.byteLength
+        
+        return `/*  ${byteLength.toString().padStart(3,' ')},  ${offset.toString().padStart(3,' ')}, ${abbrv} */   `
+      }
+      
+      const formatField = (encoded: EncodedValue) => {
+        const toZeroNumArray = (length: number) => Array.from({ length }, (_, i) => 0).join(',')
+        const toHexStringArray = (array: number[]) => array.map(c => `0x${c.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')
+        const header = toHexStringArray(encoded.encoded.header)
+        const length = toHexStringArray(encoded.encoded.length)
+        const value = ['SigningPubKey','Account'].includes(encoded.name)? toZeroNumArray(encoded.encoded.value.length) : toHexStringArray(encoded.encoded.value)
+        return [header, length, value].filter(item => item !== '').join(', ') + ','
+      }
+      const formatEndMaker= (encoded: EncodedValue) => {
+        const toHexStringArray = (array: number[]) => array.map(c => `0x${c.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')
+        return toHexStringArray(encoded.encoded.endMaker || [])
+      }
+
+      tarray.push(formatFieldComment(encoded) + formatField(encoded) + '\n')
+      
+      const result = addToMacroDict(encoded, offset)
       if (result) {
         macroDict[field] = result
       }
 
-      if (type === 'Amount' && encoded.length > 10 * 2)
-        IOUFields.push(field);
-
       byteTotal += byteLength
       offset += byteLength
-    });
+      
+      let depth = 0
+
+      // eslint-disable-next-line no-loop-func
+      const processChildren = (encoded: EncodedValue, depth: number, parentNames: string[]) => {
+        if (encoded.children) {
+          depth++
+          let parentAbbrv =  '  '.repeat(depth) //formatAbbrv(encoded.stringValue, encoded.name)
+          encoded.children.forEach((values: EncodedValues, index: number) => {
+            for (const child in values) {
+              const newParentNames = [...parentNames]
+              const bytesLength = values[child].byteLength
+              byteTotal += bytesLength
+              offset += bytesLength
+              const result = addToMacroDict(values[child], offset, newParentNames)
+              if (result) {
+                macroDict[result.out_name] = result
+              }
+              tarray.push(formatFieldComment(values[child], parentAbbrv + '.') + formatField(values[child]) + '\n')
+              
+              if (encoded.type === 'STArray')
+                newParentNames.push(index.toString())
+              newParentNames.push(values[child].name)
+              processChildren(values[child], depth, newParentNames)
+            }
+          })
+          depth--
+          parentAbbrv = '  '.repeat(depth)
+          offset += 1 // end maker
+          tarray.push(formatFieldComment(encoded, parentAbbrv + '.', '.end') + formatEndMaker(encoded) + '\n')
+        }
+      }
+      processChildren(encoded, depth,[encoded.name])
+
+      if (type === 'Amount' && encoded.encoded.value.length > 8)
+        IOUFields.push(field);
+
+    }
 
     const emitTotal = hasCallback ? 138: 116
 
@@ -359,7 +362,11 @@ const HexConversion: React.FC = () => {
       const t = tarray[i];
       texts[TEXT_INDEX.TXN] += t
     }
-    const result = addToMacroDict('EmitDetails', 'STArray', 0, offset)
+    const result = {
+      name: abbreviateCamelCase('EmitDetails'),
+      out_name: abbreviateCamelCase('EmitDetails'),
+      offset: offset,
+    }
     macroDict['EmitDetails'] = result
     texts[TEXT_INDEX.TXN] += `/*  ${emitTotal},  ${offset.toString().padStart(3,' ')}, emit details             */ \n`
     offset += emitTotal
@@ -373,10 +380,10 @@ const HexConversion: React.FC = () => {
     
     Object.keys(macroDict).forEach((key) => {
       const value = macroDict[key]
-      texts[TEXT_INDEX.TX_BUILDER] += `#define ${value.name} (txn + ${value.offset}U)\n`
+      texts[TEXT_INDEX.TX_BUILDER] += `#define ${value.out_name} (txn + ${value.offset}U)\n`
     })
 
-    const args: Record<string, { name: string; offset: number; arg: string }> = {}
+    const args: Record<string, { name: string; offset: number; }> = {}
     Object.keys(macroDict).forEach((key) => {
       if (!autofilltList.includes(key)) {
         args[key] = macroDict[key]
@@ -402,7 +409,8 @@ const HexConversion: React.FC = () => {
 `
 
     texts[TEXT_INDEX.SAMPLES] += "\n/* \n"
-    const filterArgsByFieldType = (type: string) => Object.keys(args).filter((name) => DEFAULT_DEFINITIONS.field.fromString(name).type.name === type)
+    const filterArgsByFieldType = (type: string) =>
+      Object.keys(args).filter((name) => DEFAULT_DEFINITIONS.field.fromString(args[name].name).type.name === type)
     const uint16Fields = filterArgsByFieldType("UInt16")
     if (uint16Fields.length > 0) {
       texts[TEXT_INDEX.MACROS] += `
