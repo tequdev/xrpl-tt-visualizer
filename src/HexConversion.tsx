@@ -62,7 +62,7 @@ function formatEmptyType(field: string, type: string, encoded: string): string {
   }
 }
 
-function formatField(value: string, field: string, type: string, byteLength: string, offset: string, encoded: string): string {
+function formatField(value: string, field: string, type: string, byteLength: number, offset: number, encoded: string): string {
   let abbrv = formatAbbrv(value, field)
   abbrv += " ".padEnd(24 - (abbrv.length))
   return `/*  ${byteLength.toString().padStart(3,' ')},  ${offset.toString().padStart(3,' ')}, ${abbrv} */   ${formatEmptyType(field, type, encoded)}\n`
@@ -315,16 +315,13 @@ const HexConversion: React.FC = () => {
       _json[key] = jsonData[key]
       const encoded = encode(_json)
 
-      // @ts-ignore
-      const field = DEFAULT_DEFINITIONS.field[key as string].name
-      // @ts-ignore
-      const type = DEFAULT_DEFINITIONS.field[key as string].type.name
+      const field = DEFAULT_DEFINITIONS.field.fromString(key).name
+      const type = DEFAULT_DEFINITIONS.field.fromString(key).type.name
       
       const header_length = DEFAULT_DEFINITIONS.field.fromString(key).header.length
 
       const byteLength = encoded.length / 2
 
-      // @ts-ignore
       tarray.push(formatField(jsonData[key], field, type, byteLength, offset, encoded))
       
       const result = addToMacroDict(field, type,  header_length, offset)
