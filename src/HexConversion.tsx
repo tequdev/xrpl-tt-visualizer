@@ -190,14 +190,22 @@ const approveList = [
   'Paths', // Payment
   'EmitDetails',
 ]
-function addToMacroDict(encoded: EncodedValue, offset: number, parentNames: string[] = []) {  
-  if (encoded.type === 'STArray' || encoded.type === 'STObject' || encoded.type === 'Vector256') {
+function addToMacroDict(encoded: EncodedValue, offset: number, parentNames: string[] = [], isVec256Inner = false) {  
+  if (encoded.type === 'STArray' || encoded.type === 'STObject' || encoded.type === 'Vector256')
     return null
-  }
+  
+  const parentNamesStr = parentNames.map(name => abbreviateCamelCase(name).replace('_OUT', '')).join('_')
+  
+  let out_name = abbreviateCamelCase(encoded.name)
+  if (parentNames.length > 0)
+    out_name = parentNamesStr + '_' + out_name
+  if (isVec256Inner)
+    out_name = parentNamesStr + '_OUT'
+
   if (!nonApproveList.includes(encoded.name)) {
     return {
       name: encoded.name,
-      out_name: parentNames.length > 0 ? parentNames.map(name => abbreviateCamelCase(name).replace('_OUT', '')).join('_') + '_' + abbreviateCamelCase(encoded.name) : abbreviateCamelCase(encoded.name),
+      out_name: out_name,
       offset: offset + additionalOffset(encoded),
     }
   }
@@ -315,7 +323,7 @@ const HexConversion: React.FC = () => {
       const processChildren = (encoded: EncodedValue, depth: number, parentNames: string[]) => {
         if (encoded.children) {
           depth++
-          let parentAbbrv = '  '.repeat(depth) //formatAbbrv(encoded.stringValue, encoded.name)
+          let parentAbbrv = '  '.repeat(depth) + '.'
           encoded.children.forEach((values: EncodedValues, index: number) => {
             for (const child in values) {
               const newParentNames = [...parentNames]
@@ -324,7 +332,7 @@ const HexConversion: React.FC = () => {
               if (result) {
                 macroDict[result.out_name] = result
               }
-              tarray.push(formatFieldComment(values[child], parentAbbrv + '.') + formatField(values[child]) + '\n')
+              tarray.push(formatFieldComment(values[child], parentAbbrv) + formatField(values[child]) + '\n')
               byteTotal += bytesLength
               offset += bytesLength
 
@@ -335,8 +343,8 @@ const HexConversion: React.FC = () => {
             }
           })
           depth--
-          parentAbbrv = '  '.repeat(depth)
-          tarray.push(formatFieldComment(encoded, parentAbbrv + '.', '.end') + formatEndMaker(encoded) + '\n')
+          parentAbbrv = '  '.repeat(depth) + '.'
+          tarray.push(formatFieldComment(encoded, parentAbbrv, '.end') + formatEndMaker(encoded) + '\n')
           offset += 1 // end maker
           byteTotal += 1
         } else if (encoded.type === 'Vector256') {
@@ -357,11 +365,13 @@ const HexConversion: React.FC = () => {
                 value: encoded.encoded.value.slice(i * 32, (i + 1) * 32),
               }
             }
-            const result = addToMacroDict(tmp_encoded, offset, newParentNames)
+            const result = addToMacroDict(tmp_encoded, offset, newParentNames, true)
             if (result) {
               macroDict[result.out_name] = result
             }
-            tarray.push(formatFieldComment(tmp_encoded,  '  .') + formatField(tmp_encoded) + '\n')
+
+            const parentAbbrv = '  '.repeat(depth + 1) + '.'
+            tarray.push(formatFieldComment(tmp_encoded,  parentAbbrv) + formatField(tmp_encoded) + '\n')
             offset += 32
             byteTotal += 32
           }
