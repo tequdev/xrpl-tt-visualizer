@@ -191,7 +191,7 @@ const approveList = [
   'EmitDetails',
 ]
 function addToMacroDict(encoded: EncodedValue, offset: number, parentNames: string[] = []) {  
-  if (encoded.type === 'STArray' || encoded.type === 'STObject') {
+  if (encoded.type === 'STArray' || encoded.type === 'STObject' || encoded.type === 'Vector256') {
     return null
   }
   if (!nonApproveList.includes(encoded.name)) {
@@ -266,14 +266,20 @@ const HexConversion: React.FC = () => {
       const field = DEFAULT_DEFINITIONS.field.fromString(key).name
       const type = DEFAULT_DEFINITIONS.field.fromString(key).type.name
 
-      const byteLength = encoded.byteLength
+      let byteLength = encoded.byteLength
+      if (encoded.type === 'Vector256')
+          byteLength = encoded.byteLength - encoded.encoded.value.length
       
       // eslint-disable-next-line no-loop-func
       const formatFieldComment = (encoded: EncodedValue, prefix: string = '', endMakerPostfix: string = '') => {
         let abbrv = prefix + formatAbbrv(encoded.stringValue, encoded.name) + endMakerPostfix
         abbrv += " ".padEnd(24 - (abbrv.length))
         
-        const byteLength = endMakerPostfix ? 1: encoded.byteLength
+        let byteLength = encoded.byteLength
+        if (endMakerPostfix)
+          byteLength += 1
+        if (encoded.type === 'Vector256')
+          byteLength = encoded.byteLength - encoded.encoded.value.length
         
         return `/*  ${byteLength.toString().padStart(3,' ')},  ${offset.toString().padStart(3,' ')}, ${abbrv} */   `
       }
@@ -283,10 +289,12 @@ const HexConversion: React.FC = () => {
         const toHexStringArray = (array: number[]) => array.map(c => `0x${c.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')
         const header = toHexStringArray(encoded.encoded.header)
         const length = toHexStringArray(encoded.encoded.length)
-        const value = ['SigningPubKey','Account'].includes(encoded.name)? toZeroNumArray(encoded.encoded.value.length) : toHexStringArray(encoded.encoded.value)
+        let value = ['SigningPubKey', 'Account'].includes(encoded.name) ? toZeroNumArray(encoded.encoded.value.length) : toHexStringArray(encoded.encoded.value)
+        if (encoded.type === 'Vector256')
+          value = '' // output in other place
         return [header, length, value].filter(item => item !== '').join(', ') + ','
       }
-      const formatEndMaker= (encoded: EncodedValue) => {
+      const formatEndMaker = (encoded: EncodedValue) => {
         const toHexStringArray = (array: number[]) => array.map(c => `0x${c.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')
         return toHexStringArray(encoded.encoded.endMaker || [])
       }
@@ -307,19 +315,19 @@ const HexConversion: React.FC = () => {
       const processChildren = (encoded: EncodedValue, depth: number, parentNames: string[]) => {
         if (encoded.children) {
           depth++
-          let parentAbbrv =  '  '.repeat(depth) //formatAbbrv(encoded.stringValue, encoded.name)
+          let parentAbbrv = '  '.repeat(depth) //formatAbbrv(encoded.stringValue, encoded.name)
           encoded.children.forEach((values: EncodedValues, index: number) => {
             for (const child in values) {
               const newParentNames = [...parentNames]
               const bytesLength = values[child].byteLength
-              byteTotal += bytesLength
-              offset += bytesLength
               const result = addToMacroDict(values[child], offset, newParentNames)
               if (result) {
                 macroDict[result.out_name] = result
               }
               tarray.push(formatFieldComment(values[child], parentAbbrv + '.') + formatField(values[child]) + '\n')
-              
+              byteTotal += bytesLength
+              offset += bytesLength
+
               if (encoded.type === 'STArray')
                 newParentNames.push(index.toString())
               newParentNames.push(values[child].name)
@@ -328,8 +336,35 @@ const HexConversion: React.FC = () => {
           })
           depth--
           parentAbbrv = '  '.repeat(depth)
-          offset += 1 // end maker
           tarray.push(formatFieldComment(encoded, parentAbbrv + '.', '.end') + formatEndMaker(encoded) + '\n')
+          offset += 1 // end maker
+          byteTotal += 1
+        } else if (encoded.type === 'Vector256') {
+          const innerCount = encoded.encoded.length[0] / 32
+          // repeat for each 32bytes hash in the vector256
+          for (let i = 0; i < innerCount; i++) {
+            const newParentNames = [...parentNames]
+            newParentNames.push(i.toString())
+            const tmp_encoded = {
+              name: encoded.name,
+              type: 'Hash256',
+              byteLength: 32,
+              offset: offset,
+              stringValue: encoded.stringValue[i],
+              encoded: {
+                header: [] as number[],
+                length: [] as number[],
+                value: encoded.encoded.value.slice(i * 32, (i + 1) * 32),
+              }
+            }
+            const result = addToMacroDict(tmp_encoded, offset, newParentNames)
+            if (result) {
+              macroDict[result.out_name] = result
+            }
+            tarray.push(formatFieldComment(tmp_encoded,  '  .') + formatField(tmp_encoded) + '\n')
+            offset += 32
+            byteTotal += 32
+          }
         }
       }
       processChildren(encoded, depth,[encoded.name])
@@ -468,8 +503,8 @@ const HexConversion: React.FC = () => {
     *(uint64_t *)(buf_to + 24) = *(const uint64_t *)(buf_from + 24);           \\
   }
 `
+      texts[TEXT_INDEX.SAMPLES] += `uint8_t hash[32]; \n`
       for (const field of hash256Fields) {
-        texts[TEXT_INDEX.SAMPLES] += `uint8_t hash[32]; \n`
         texts[TEXT_INDEX.SAMPLES] += `SET_HASH256(${abbreviateCamelCase(field)}, hash);\n`
       }
     }
@@ -546,7 +581,27 @@ const HexConversion: React.FC = () => {
     }
     // const hash160fields = filterArgsByFieldType("Hash160") // no transaction fields
     // const pathSetFields = filterArgsByFieldType("PathSet")
-    // const vector256fields = filterArgsByFieldType("Vector256") // URITokenIDs
+    const vector256Fields = filterArgsByFieldType("Vector256") // URITokenIDs
+    if (vector256Fields.length > 0) {
+      if (hash256Fields.length === 0) {
+        // use same macro for hash256
+        texts[TEXT_INDEX.MACROS] += `
+#define SET_HASH256(ptr_to, ptr_from)                                          \\
+  {                                                                            \\
+    const unsigned char *buf_from = (const unsigned char *)ptr_from;           \\
+    unsigned char *buf_to = (unsigned char *)ptr_to;                           \\
+    *(uint64_t *)(buf_to + 0) = *(const uint64_t *)(buf_from + 0);             \\
+    *(uint64_t *)(buf_to + 8) = *(const uint64_t *)(buf_from + 8);             \\
+    *(uint64_t *)(buf_to + 16) = *(const uint64_t *)(buf_from + 16);           \\
+    *(uint64_t *)(buf_to + 24) = *(const uint64_t *)(buf_from + 24);           \\
+  }
+`
+        texts[TEXT_INDEX.SAMPLES] += `uint8_t hash[32]; \n`
+      }
+      for (const field of vector256Fields) {
+        texts[TEXT_INDEX.SAMPLES] += `SET_HASH256(${abbreviateCamelCase(field)}, hash);\n`
+      }
+    }
     
     texts[TEXT_INDEX.SAMPLES] += "PREPARE_TXN(); \n"
 
