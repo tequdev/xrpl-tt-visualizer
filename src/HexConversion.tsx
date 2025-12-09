@@ -127,6 +127,10 @@ function abbreviateCamelCase(variableName: string, limit: number = 4): string {
       return "ID_OUT";
     case 'EmitDetails':
       return "EMIT_OUT";
+    case 'RawTransactions':
+      return "RAWTXS_OUT";
+    case 'RawTransaction':
+      return "RAWTX_OUT";
     default:
       return variableName.toUpperCase() + "_OUT";
   }
