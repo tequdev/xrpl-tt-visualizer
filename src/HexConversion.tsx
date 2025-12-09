@@ -218,6 +218,8 @@ function addToMacroDict(encoded: EncodedValue, offset: number, parentNames: stri
 
 function additionalOffset(encoded: EncodedValue) {
   switch (encoded.type) {
+    case 'AccountID':
+      return encoded.encoded.header.length + 1;
     case 'STArray':
       if (encoded.name === 'EmitDetails')
         return 0;
@@ -298,7 +300,7 @@ const HexConversion: React.FC = () => {
       
       const formatField = (encoded: EncodedValue) => {
         const toZeroNumArray = (length: number) => Array.from({ length }, (_, i) => 0).join(',')
-        const toHexStringArray = (array: number[]) => array.map(c => `0x${c.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')
+        const toHexStringArray = (array: number[]) => array.map(c => `0x${c.toString(16).toUpperCase().padStart(2, '0')}U`).join(', ')
         const header = toHexStringArray(encoded.encoded.header)
         const length = toHexStringArray(encoded.encoded.length)
         let value = ['SigningPubKey', 'Account'].includes(encoded.name) ? toZeroNumArray(encoded.encoded.value.length) : toHexStringArray(encoded.encoded.value)
@@ -307,7 +309,7 @@ const HexConversion: React.FC = () => {
         return [header, length, value].filter(item => item !== '').join(', ') + ','
       }
       const formatEndMaker = (encoded: EncodedValue) => {
-        const toHexStringArray = (array: number[]) => array.map(c => `0x${c.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')
+        const toHexStringArray = (array: number[]) => array.map(c => `0x${c.toString(16).toUpperCase().padStart(2, '0')}U`).join(', ')
         return toHexStringArray(encoded.encoded.endMaker || []) + ','
       }
 
