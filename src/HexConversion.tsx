@@ -308,7 +308,7 @@ const HexConversion: React.FC = () => {
       }
       const formatEndMaker = (encoded: EncodedValue) => {
         const toHexStringArray = (array: number[]) => array.map(c => `0x${c.toString(16).toUpperCase().padStart(2, '0')}`).join(', ')
-        return toHexStringArray(encoded.encoded.endMaker || [])
+        return toHexStringArray(encoded.encoded.endMaker || []) + ','
       }
 
       tarray.push(formatFieldComment(encoded) + formatField(encoded) + '\n')
