@@ -556,9 +556,9 @@ const HexConversion: React.FC = () => {
     *(uint64_t *)(b + 0) = *(uint64_t *)(currency + 0);                        \\
     *(uint64_t *)(b + 8) = *(uint64_t *)(currency + 8);                        \\
     *(uint32_t *)(b + 16) = *(uint32_t *)(currency + 16);                      \\
-    *(uint64_t *)(b + 24) = *(uint64_t *)(issuer + 0);                         \\
-    *(uint64_t *)(b + 32) = *(uint64_t *)(issuer + 8);                         \\
-    *(uint32_t *)(b + 40) = *(uint32_t *)(issuer + 16);                        \\
+    *(uint64_t *)(b + 20) = *(uint64_t *)(issuer + 0);                         \\
+    *(uint64_t *)(b + 28) = *(uint64_t *)(issuer + 8);                         \\
+    *(uint32_t *)(b + 32) = *(uint32_t *)(issuer + 16);                        \\
   } while (0)
 `
       for (const field of amountFields) {
