@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import JsonTextArea from "./utils/JsonTextArea";
 import HookTextArea from "./utils/HookTextArea";
-import { DEFAULT_DEFINITIONS } from "xahau-binary-codec";
+import { coreTypes, DEFAULT_DEFINITIONS, XrplDefinitionsBase } from "xahau-binary-codec";
 import { EncodedValue, EncodedValues, txJsonToEncodedValues } from "./utils/txJsonToEncodedValues";
 
 
@@ -263,7 +263,39 @@ console.log(getAdditionalArgs('TakerPays', 0));
 
 const HexConversion: React.FC = () => {
   const [hexOutput, setHexOutput] = useState<string>("");
+  const [defs, setDefs] = useState<XrplDefinitionsBase>(DEFAULT_DEFINITIONS);
   let IOUFields: string[] = [];
+  
+  useEffect(() => {
+    const strip = (html: string) => {
+      let doc = new DOMParser().parseFromString(html, 'text/html');
+      return doc.body.textContent || "";
+    }
+    let url = 'https://xahau.network/server_definitions.json'
+    
+    const searchUrl = window.location.search.substr(1)
+    if (!(searchUrl === undefined || (''+searchUrl).trim() === ''))
+      url = strip(searchUrl)
+
+    fetch(url)
+    .then(function(response) {
+        return response.json();
+    })
+    .then(function (jsonResponse) {
+      console.log(jsonResponse);
+      let defJson: string
+      if (Object.keys(jsonResponse).length === 1 && jsonResponse.result)
+        defJson = jsonResponse.result
+      else
+        defJson = jsonResponse
+      setDefs(new XrplDefinitionsBase(defJson as any, coreTypes))
+    }).catch(e=>{
+        console.log(e);
+        throw new Error("Could not load: " + strip(url));
+    });
+    
+   },[])
+  
   const handleOnConvert = (json: any, hasCallback: boolean) => {
     const jsonData = addDefaultFields(JSON.parse(json))
     let macroDict: Record<string, { name: string; out_name: string; offset: number; }> = {}
@@ -271,14 +303,14 @@ const HexConversion: React.FC = () => {
     let offset = 0
     const tarray: string[] = []
     
-    const encodedValues = txJsonToEncodedValues(jsonData)
+    const encodedValues = txJsonToEncodedValues(jsonData, defs)
 
     for (const key in encodedValues) {
       // Perform any additional processing with the key and value here
       const encoded = encodedValues[key]
 
-      const field = DEFAULT_DEFINITIONS.field.fromString(key).name
-      const type = DEFAULT_DEFINITIONS.field.fromString(key).type.name
+      const field = defs.field.fromString(key).name
+      const type = defs.field.fromString(key).type.name
 
       let byteLength = encoded.byteLength
       if (encoded.type === 'Vector256')
@@ -461,7 +493,7 @@ const HexConversion: React.FC = () => {
 
     texts[TEXT_INDEX.SAMPLES] += "\n/* \n"
     const filterArgsByFieldType = (type: string) =>
-      Object.keys(args).filter((name) => DEFAULT_DEFINITIONS.field.fromString(args[name].name).type.name === type)
+      Object.keys(args).filter((name) => defs.field.fromString(args[name].name).type.name === type)
     const uint16Fields = filterArgsByFieldType("UInt16")
     if (uint16Fields.length > 0) {
       texts[TEXT_INDEX.MACROS] += `

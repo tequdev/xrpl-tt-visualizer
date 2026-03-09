@@ -1,4 +1,4 @@
-import { encode, DEFAULT_DEFINITIONS } from "xahau-binary-codec"
+import { encode, XrplDefinitionsBase } from "xahau-binary-codec"
 
 export type EncodedValue = {
     name: string
@@ -31,13 +31,16 @@ const getVarLengthLength = (bytes: number[]) => {
   return 3
 }
 
-const txJsonToEncodedValues = (txJson: Record<string, any>) => {
+const txJsonToEncodedValues = (txJson: Record<string, any>, definitions:XrplDefinitionsBase) => {
   const encodedValues = {} as EncodedValues
   let offset = 0
   Object.keys(txJson).forEach((key) => {
-    const field = DEFAULT_DEFINITIONS.field.fromString(key)
+    const field = definitions.field.fromString(key)
     const headerLength = field.header.length
-    const encoded = hexToNumberArray(encode({ [key]: txJson[key] }))
+    console.log(key, txJson)
+    console.log({ [key]: txJson[key] })
+    console.log(definitions.field.fromString(key))
+    const encoded = hexToNumberArray(encode({ [key]: txJson[key] }, definitions))
 
     const header = encoded.slice(0, headerLength)
     const length = field.isVariableLengthEncoded ? encoded.slice(headerLength, headerLength + getVarLengthLength(encoded.slice(headerLength))) : []
@@ -47,7 +50,7 @@ const txJsonToEncodedValues = (txJson: Record<string, any>) => {
 
     const endMaker = field.type.name === 'STObject' ? [0xE1] : field.type.name === 'STArray' ? [0xF1] : []
     
-    const children = field.type.name === 'STObject' ? [txJsonToEncodedValues(txJson[key])] :  field.type.name === 'STArray' ? (txJson[key] as any[]).map(item => txJsonToEncodedValues(item)) : []
+    const children = field.type.name === 'STObject' ? [txJsonToEncodedValues(txJson[key], definitions)] :  field.type.name === 'STArray' ? (txJson[key] as any[]).map(item => txJsonToEncodedValues(item, definitions)) : []
     
     encodedValues[key] = {
       name: key,
