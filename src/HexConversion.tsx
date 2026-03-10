@@ -238,29 +238,6 @@ const autofilltList = [
   'Flags',
 ]
 
-function getAdditionalArgs(field:string, flags: number): any {
-  switch (field) {
-    case 'Account':
-      return ['account_buffer']
-    case 'LimitAmount':
-      return ['currency_buffer', 'issuer_buffer', 'amount_xfl']
-    case 'TakerGets':
-      if (flags === 1) {
-        return ['xah_xfl']
-      }
-      return ['currency_buffer', 'issuer_buffer', 'amount_xfl']
-    case 'TakerPays':
-      if (flags === 0) {
-        return ['xah_xfl']
-      }
-      return ['currency_buffer', 'issuer_buffer', 'amount_xfl']
-    default:
-      return null;
-  }
-}
-
-console.log(getAdditionalArgs('TakerPays', 0));
-
 const HexConversion: React.FC = () => {
   const [hexOutput, setHexOutput] = useState<string>("");
   const [defs, setDefs] = useState<XrplDefinitionsBase>(DEFAULT_DEFINITIONS);
@@ -282,7 +259,6 @@ const HexConversion: React.FC = () => {
         return response.json();
     })
     .then(function (jsonResponse) {
-      console.log(jsonResponse);
       let defJson: string
       if (Object.keys(jsonResponse).length === 1 && jsonResponse.result)
         defJson = jsonResponse.result
@@ -459,7 +435,7 @@ const HexConversion: React.FC = () => {
 
     texts[TEXT_INDEX.TX_BUILDER] += "// TX BUILDER\n"
 
-    console.log(macroDict);
+    // console.log(macroDict);
     
     Object.keys(macroDict).forEach((key) => {
       const value = macroDict[key]
@@ -494,6 +470,7 @@ const HexConversion: React.FC = () => {
     texts[TEXT_INDEX.SAMPLES] += "\n/* \n"
     const filterArgsByFieldType = (type: string) =>
       Object.keys(args).filter((name) => defs.field.fromString(args[name].name).type.name === type)
+
     const uint16Fields = filterArgsByFieldType("UInt16")
     if (uint16Fields.length > 0) {
       texts[TEXT_INDEX.MACROS] += `
@@ -650,6 +627,50 @@ const HexConversion: React.FC = () => {
         texts[TEXT_INDEX.SAMPLES] += `SET_HASH256(${abbreviateCamelCase(field)}, hash);\n`
       }
     }
+    
+    // CURRENCY (20bytes)
+    const currencyFields = filterArgsByFieldType("Currency")
+    if (currencyFields.length > 0) {
+      texts[TEXT_INDEX.SET_FIELDS] += `
+#define SET_CURRENCY(ptr, currency)                                            \\
+  {                                                                            \\
+    unsigned char *buf_to = (unsigned char *)ptr;                              \\
+    unsigned char *buf_from = (unsigned char *)currency;                       \\
+    *(uint64_t *)(buf_to + 0) = *(uint64_t *)(buf_from + 0);                   \\
+    *(uint64_t *)(buf_to + 8) = *(uint64_t *)(buf_from + 8);                   \\
+    *(uint32_t *)(buf_to + 16) = *(uint32_t *)(buf_from + 16);                 \\
+  }
+`
+      texts[TEXT_INDEX.SAMPLES] += "uint8_t currency_buffer[20]; \n"
+      for (const field of currencyFields) {
+        texts[TEXT_INDEX.SAMPLES] += `SET_CURRENCY(${abbreviateCamelCase(field)}, currency_buffer);\n`
+      }
+    }
+
+    // ISSUE (currency + issuer)
+    const issueFields = filterArgsByFieldType("Issue")
+    if (issueFields.length > 0) {
+      texts[TEXT_INDEX.SET_FIELDS] += `
+#define SET_ISSUE(ptr, currency, issuer)                                       \\
+  {                                                                            \\
+    unsigned char *buf_to = (unsigned char *)ptr;                              \\
+    unsigned char *buf_from = (unsigned char *)currency;                       \\
+    *(uint64_t *)(buf_to + 0) = *(uint64_t *)(buf_from + 0);                   \\
+    *(uint64_t *)(buf_to + 8) = *(uint64_t *)(buf_from + 8);                   \\
+    *(uint32_t *)(buf_to + 16) = *(uint32_t *)(buf_from + 16);                 \\
+    buf_from = (unsigned char *)issuer;                                        \\
+    *(uint64_t *)(buf_to + 20) = *(uint64_t *)(buf_from + 0);                  \\
+    *(uint64_t *)(buf_to + 28) = *(uint64_t *)(buf_from + 8);                  \\
+    *(uint32_t *)(buf_to + 36) = *(uint32_t *)(buf_from + 16);                 \\
+  }
+`
+      texts[TEXT_INDEX.SAMPLES] += "uint8_t issue_buffer[20]; \n"
+      texts[TEXT_INDEX.SAMPLES] += "uint8_t currency_buffer[20]; \n"
+      for (const field of issueFields) {
+        texts[TEXT_INDEX.SAMPLES] += `SET_ISSUE(${abbreviateCamelCase(field)}, currency_buffer, issuer_buffer);\n`
+      }
+    }
+    // TODO: XCHAINBRIDGE
     
     texts[TEXT_INDEX.SAMPLES] += "PREPARE_TXN(); \n"
 

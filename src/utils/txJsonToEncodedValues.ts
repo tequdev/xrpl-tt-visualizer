@@ -37,9 +37,6 @@ const txJsonToEncodedValues = (txJson: Record<string, any>, definitions:XrplDefi
   Object.keys(txJson).forEach((key) => {
     const field = definitions.field.fromString(key)
     const headerLength = field.header.length
-    console.log(key, txJson)
-    console.log({ [key]: txJson[key] })
-    console.log(definitions.field.fromString(key))
     const encoded = hexToNumberArray(encode({ [key]: txJson[key] }, definitions))
 
     const header = encoded.slice(0, headerLength)
