@@ -39,7 +39,10 @@ const JsonTextArea = ({ onConvert }: JsonTextAreaProps) => {
       <textarea
         value={jsonText}
         onChange={handleJsonChange}
-        placeholder="Enter JSON here"
+        placeholder={`// Enter TxJson here
+{
+  "TransactionType": "AccountSet"
+}`}
         rows={10}
         cols={100}
         style={{ fontFamily: 'monospace' }}

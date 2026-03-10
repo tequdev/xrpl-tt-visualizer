@@ -685,6 +685,8 @@ const HexConversion: React.FC = () => {
     <div>
       <h1>Xahau Hook Tx Builder</h1>
       <p>Paste a json Xahau tx below to convert it to a c hook binary tx.</p>
+      <p>To use custom definitions, specify the path to the JSON file as follows:<br/>
+      https://tx-builder.xahau.tools/?https://example.com/definitions.json</p>
       <JsonTextArea onConvert={handleOnConvert} />
       <HookTextArea value={hexOutput} />
     </div>
