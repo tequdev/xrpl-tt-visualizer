@@ -409,14 +409,15 @@ const HexConversion: React.FC = () => {
     enum TEXT_INDEX {
       TXN = 0,
       TX_BUILDER = 1,
-      MACROS = 2,
-      SET_FIELDS = 3,
-      EMIT = 4,
-      PREPARE_TXN = 5,
-      SAMPLES = 6,
+      MACROS_COMMON = 2,
+      MACROS = 3,
+      SET_FIELDS = 4,
+      EMIT = 5,
+      PREPARE_TXN = 6,
+      SAMPLES = 7,
     }
     
-    let texts: string[] = Array(7).fill('')
+    let texts: string[] = Array(TEXT_INDEX.SAMPLES + 1).fill('')
     texts[TEXT_INDEX.TXN] += "// clang-format off\n"
     texts[TEXT_INDEX.TXN] += `uint8_t txn[${byteTotal}] =\n`
     texts[TEXT_INDEX.TXN] += "{\n"
@@ -566,12 +567,8 @@ const HexConversion: React.FC = () => {
     *b++ = (amount_xfl >> 16) & 0xFFU;                                         \\
     *b++ = (amount_xfl >> 8) & 0xFFU;                                          \\
     *b++ = (amount_xfl >> 0) & 0xFFU;                                          \\
-    *(uint64_t *)(b + 0) = *(uint64_t *)(currency + 0);                        \\
-    *(uint64_t *)(b + 8) = *(uint64_t *)(currency + 8);                        \\
-    *(uint32_t *)(b + 16) = *(uint32_t *)(currency + 16);                      \\
-    *(uint64_t *)(b + 20) = *(uint64_t *)(issuer + 0);                         \\
-    *(uint64_t *)(b + 28) = *(uint64_t *)(issuer + 8);                         \\
-    *(uint32_t *)(b + 32) = *(uint32_t *)(issuer + 16);                        \\
+    COPY_20(b, currency);                                                      \\
+    COPY_20(b + 20, issuer);                                                   \\
   } while (0)
 `
       for (const field of amountFields) {
@@ -587,11 +584,7 @@ const HexConversion: React.FC = () => {
       texts[TEXT_INDEX.SET_FIELDS] += `
 #define SET_ACCOUNT(ptr_to, ptr_from)                                          \\
   {                                                                            \\
-    unsigned char *buf_to = (unsigned char *)ptr_to;                           \\
-    unsigned char *buf_from = (unsigned char *)ptr_from;                       \\
-    *(uint64_t *)(buf_to + 0) = *(uint64_t *)(buf_from + 0);                   \\
-    *(uint64_t *)(buf_to + 8) = *(uint64_t *)(buf_from + 8);                   \\
-    *(uint32_t *)(buf_to + 16) = *(uint32_t *)(buf_from + 16);                 \\
+    COPY_20(ptr_to, ptr_from);                                                 \\
   }
 `
       texts[TEXT_INDEX.SAMPLES] += "uint8_t account_buffer[20]; \n"
@@ -638,11 +631,7 @@ const HexConversion: React.FC = () => {
       texts[TEXT_INDEX.SET_FIELDS] += `
 #define SET_CURRENCY(ptr, currency)                                            \\
   {                                                                            \\
-    unsigned char *buf_to = (unsigned char *)ptr;                              \\
-    unsigned char *buf_from = (unsigned char *)currency;                       \\
-    *(uint64_t *)(buf_to + 0) = *(uint64_t *)(buf_from + 0);                   \\
-    *(uint64_t *)(buf_to + 8) = *(uint64_t *)(buf_from + 8);                   \\
-    *(uint32_t *)(buf_to + 16) = *(uint32_t *)(buf_from + 16);                 \\
+    COPY_20(ptr, currency);                                                   \\
   }
 `
       texts[TEXT_INDEX.SAMPLES] += "uint8_t currency_buffer[20]; \n"
@@ -658,12 +647,8 @@ const HexConversion: React.FC = () => {
         texts[TEXT_INDEX.SET_FIELDS] += `
 #define SET_NATIVE_ISSUE(ptr)                                                  \\
   {                                                                            \\
-    uint8_t currency_buffer[20];                                               \\
-    unsigned char *buf_to = (unsigned char *)ptr;                              \\
-    unsigned char *buf_from = (unsigned char *)currency_buffer;                \\
-    *(uint64_t *)(buf_to + 0) = *(uint64_t *)(buf_from + 0);                   \\
-    *(uint64_t *)(buf_to + 8) = *(uint64_t *)(buf_from + 8);                   \\
-    *(uint32_t *)(buf_to + 16) = *(uint32_t *)(buf_from + 16);                 \\
+    uint8_t currency_buffer[20] = {};                                          \\
+    COPY_20(ptr, currency_buffer);                                             \\
   }
 `
     }
@@ -671,19 +656,12 @@ const HexConversion: React.FC = () => {
         texts[TEXT_INDEX.SET_FIELDS] += `
 #define SET_ISSUE(ptr, currency, issuer)                                       \\
   {                                                                            \\
-    unsigned char *buf_to = (unsigned char *)ptr;                              \\
-    unsigned char *buf_from = (unsigned char *)currency;                       \\
-    *(uint64_t *)(buf_to + 0) = *(uint64_t *)(buf_from + 0);                   \\
-    *(uint64_t *)(buf_to + 8) = *(uint64_t *)(buf_from + 8);                   \\
-    *(uint32_t *)(buf_to + 16) = *(uint32_t *)(buf_from + 16);                 \\
-    buf_from = (unsigned char *)issuer;                                        \\
-    *(uint64_t *)(buf_to + 20) = *(uint64_t *)(buf_from + 0);                  \\
-    *(uint64_t *)(buf_to + 28) = *(uint64_t *)(buf_from + 8);                  \\
-    *(uint32_t *)(buf_to + 36) = *(uint32_t *)(buf_from + 16);                 \\
+    COPY_20(ptr, currency);                                                    \\
+    COPY_20(ptr + 20, issuer);                                                 \\
   }
 `
         if (issueFields.length !== IOUIssueFields.length) {
-          texts[TEXT_INDEX.SAMPLES] += "uint8_t issue_buffer[20]; \n"
+          texts[TEXT_INDEX.SAMPLES] += "uint8_t issuer_buffer[20]; \n"
           texts[TEXT_INDEX.SAMPLES] += "uint8_t currency_buffer[20]; \n"
         }
         for (const field of issueFields) {
@@ -695,6 +673,20 @@ const HexConversion: React.FC = () => {
       }
     }
     // TODO: XCHAINBRIDGE
+    
+    // common macros
+    // COPY_20
+    if (IOUAmountFields.length > 0 || accountFields.length > 0 || currencyFields.length > 0 || issueFields.length > 0) { }
+      texts[TEXT_INDEX.MACROS_COMMON] += `
+#define COPY_20(ptr_to, ptr_from)                                              \\
+  do {                                                                         \\
+    unsigned char *buf_to = (unsigned char *)ptr_to;                           \\
+    unsigned char *buf_from = (unsigned char *)ptr_from;                       \\
+    *(uint64_t *)(buf_to + 0) = *(uint64_t *)(buf_from + 0);                   \\
+    *(uint64_t *)(buf_to + 8) = *(uint64_t *)(buf_from + 8);                   \\
+    *(uint32_t *)(buf_to + 16) = *(uint32_t *)(buf_from + 16);                 \\
+  } while (0)
+`
     
     texts[TEXT_INDEX.SAMPLES] += "PREPARE_TXN(); \n"
 
