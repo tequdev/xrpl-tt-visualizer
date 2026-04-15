@@ -241,7 +241,8 @@ const autofilltList = [
 const HexConversion: React.FC = () => {
   const [hexOutput, setHexOutput] = useState<string>("");
   const [defs, setDefs] = useState<XrplDefinitionsBase>(DEFAULT_DEFINITIONS);
-  let IOUFields: string[] = [];
+  let IOUAmountFields: string[] = [];
+  let IOUIssueFields: string[] = [];
   
   useEffect(() => {
     const strip = (html: string) => {
@@ -394,7 +395,10 @@ const HexConversion: React.FC = () => {
       processChildren(encoded, depth,[encoded.name])
 
       if (type === 'Amount' && encoded.encoded.value.length > 8)
-        IOUFields.push(field);
+        IOUAmountFields.push(field);
+      
+      if (type === 'Issue' && encoded.encoded.value.length > 20)
+        IOUIssueFields.push(field);
 
     }
 
@@ -549,7 +553,7 @@ const HexConversion: React.FC = () => {
     *b++ = (amount >> 0) & 0xFFU;                                              \\
   } while (0)
 `
-      if (IOUFields.length > 0)
+      if (IOUAmountFields.length > 0)
        texts[TEXT_INDEX.SET_FIELDS] += `
 #define SET_IOU_AMOUNT(ptr, issuer, currency, amount_xfl)                      \\
   do {                                                                         \\
@@ -571,7 +575,7 @@ const HexConversion: React.FC = () => {
   } while (0)
 `
       for (const field of amountFields) {
-        if (!IOUFields.includes(field))
+        if (!IOUAmountFields.includes(field))
           texts[TEXT_INDEX.SAMPLES] += `SET_NATIVE_AMOUNT(${abbreviateCamelCase(field)}, 100);\n`
         else
           texts[TEXT_INDEX.SAMPLES] += `SET_IOU_AMOUNT(${abbreviateCamelCase(field)}, issuer_buffer, currency_buffer, amount_xfl);\n`
@@ -650,7 +654,21 @@ const HexConversion: React.FC = () => {
     // ISSUE (currency + issuer)
     const issueFields = filterArgsByFieldType("Issue")
     if (issueFields.length > 0) {
-      texts[TEXT_INDEX.SET_FIELDS] += `
+      if (issueFields.length !== IOUIssueFields.length){
+        texts[TEXT_INDEX.SET_FIELDS] += `
+#define SET_NATIVE_ISSUE(ptr)                                                  \\
+  {                                                                            \\
+    uint8_t currency_buffer[20];                                               \\
+    unsigned char *buf_to = (unsigned char *)ptr;                              \\
+    unsigned char *buf_from = (unsigned char *)currency_buffer;                \\
+    *(uint64_t *)(buf_to + 0) = *(uint64_t *)(buf_from + 0);                   \\
+    *(uint64_t *)(buf_to + 8) = *(uint64_t *)(buf_from + 8);                   \\
+    *(uint32_t *)(buf_to + 16) = *(uint32_t *)(buf_from + 16);                 \\
+  }
+`
+    }
+      if (IOUIssueFields.length > 0) {
+        texts[TEXT_INDEX.SET_FIELDS] += `
 #define SET_ISSUE(ptr, currency, issuer)                                       \\
   {                                                                            \\
     unsigned char *buf_to = (unsigned char *)ptr;                              \\
@@ -664,10 +682,16 @@ const HexConversion: React.FC = () => {
     *(uint32_t *)(buf_to + 36) = *(uint32_t *)(buf_from + 16);                 \\
   }
 `
-      texts[TEXT_INDEX.SAMPLES] += "uint8_t issue_buffer[20]; \n"
-      texts[TEXT_INDEX.SAMPLES] += "uint8_t currency_buffer[20]; \n"
-      for (const field of issueFields) {
-        texts[TEXT_INDEX.SAMPLES] += `SET_ISSUE(${abbreviateCamelCase(field)}, currency_buffer, issuer_buffer);\n`
+        if (issueFields.length !== IOUIssueFields.length) {
+          texts[TEXT_INDEX.SAMPLES] += "uint8_t issue_buffer[20]; \n"
+          texts[TEXT_INDEX.SAMPLES] += "uint8_t currency_buffer[20]; \n"
+        }
+        for (const field of issueFields) {
+          if (!IOUIssueFields.includes(field))
+            texts[TEXT_INDEX.SAMPLES] += `SET_NATIVE_ISSUE(${abbreviateCamelCase(field)});\n`
+          else
+            texts[TEXT_INDEX.SAMPLES] += `SET_ISSUE(${abbreviateCamelCase(field)}, currency_buffer, issuer_buffer);\n`
+        }
       }
     }
     // TODO: XCHAINBRIDGE
