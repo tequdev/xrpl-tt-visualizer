@@ -17,6 +17,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@tequdev/xahau-design-system':
+        specifier: github:tequdev/xahau-design-system#8594442
+        version: https://codeload.github.com/tequdev/xahau-design-system/tar.gz/8594442aec3d6d3dc46e4593a37d5f83b893ce05
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -419,6 +422,10 @@ packages:
 
   '@scure/base@1.2.6':
     resolution: {integrity: sha512-g/nm5FgUa//MCj1gV09zTJTaM6KBAHqLN907YVQqf7zC49+DcO4B1so4ZX07Ef10Twr6nuqYEH9GEggFXA4Fmg==}
+
+  '@tequdev/xahau-design-system@https://codeload.github.com/tequdev/xahau-design-system/tar.gz/8594442aec3d6d3dc46e4593a37d5f83b893ce05':
+    resolution: {gitHosted: true, integrity: sha512-fpgOHxbeQUgIzmQl3tfti6ikKaC13HCpWP/Tgjc8du3b4Cn05jTDr7htcFn6SciKQiOLyTzqd2BqCtMB6E45Wg==, tarball: https://codeload.github.com/tequdev/xahau-design-system/tar.gz/8594442aec3d6d3dc46e4593a37d5f83b893ce05}
+    version: 0.1.0
 
   '@tootallnate/once@1.1.2':
     resolution: {integrity: sha512-RbzJvlNzmRq5c3O09UipeuXno4tA1FE6ikOjxZK0tuxVv3412l64l5t1W5pj4+rJq9vpkm/kwiR07aZXnsKPxw==}
@@ -1477,6 +1484,8 @@ snapshots:
   '@rolldown/pluginutils@1.0.1': {}
 
   '@scure/base@1.2.6': {}
+
+  '@tequdev/xahau-design-system@https://codeload.github.com/tequdev/xahau-design-system/tar.gz/8594442aec3d6d3dc46e4593a37d5f83b893ce05': {}
 
   '@tootallnate/once@1.1.2':
     optional: true
