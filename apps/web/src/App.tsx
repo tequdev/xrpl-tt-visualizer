@@ -1,5 +1,5 @@
-import './App.css';
-import HexConversion from './HexConversion';
+import "./App.css";
+import HexConversion from "./HexConversion";
 
 function App() {
   return (

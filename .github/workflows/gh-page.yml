@@ -7,7 +7,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -25,8 +24,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '24'
-          cache: 'pnpm'
+          node-version: "24"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -44,4 +43,3 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./apps/web/dist
           cname: tx-builder.xahau.tools
-

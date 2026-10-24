@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 // Define the shape of the results prop
 type JsonTextAreaProps = {
@@ -12,7 +12,7 @@ const HookTextArea = ({ value }: JsonTextAreaProps) => {
       placeholder="Hook C Tx Output"
       rows={40}
       cols={150}
-      style={{ fontFamily: 'monospace' }}
+      style={{ fontFamily: "monospace" }}
     />
   );
 };
