@@ -31,6 +31,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Test
+        run: pnpm test
+
       - name: Build
         run: pnpm build
 
@@ -39,6 +42,6 @@ jobs:
         if: github.ref == 'refs/heads/tequ'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
+          publish_dir: ./apps/web/dist
           cname: tx-builder.xahau.tools
 

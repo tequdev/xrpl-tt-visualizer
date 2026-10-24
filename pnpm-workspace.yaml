@@ -1,4 +1,6 @@
-# core-js postinstall only prints a funding banner
+packages:
+  - 'packages/*'
+  - 'apps/*'
+
 allowBuilds:
-  core-js: false
-  core-js-pure: false
+  esbuild: true
