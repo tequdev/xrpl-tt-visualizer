@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tequdev/xahau-design-system": "github:tequdev/xahau-design-system#8594442",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "xahau-hook-tx-builder": "workspace:*"
