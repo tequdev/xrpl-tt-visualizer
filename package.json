@@ -5,13 +5,16 @@
     "build": "pnpm -r build",
     "test": "pnpm --filter xahau-hook-tx-builder test",
     "predeploy": "pnpm build",
-    "deploy": "gh-pages -d apps/web/dist"
+    "deploy": "gh-pages -d apps/web/dist",
+    "lint": "biome ci .",
+    "format": "biome check --write ."
   },
   "author": {
     "name": "Denis Angell",
     "url": "https://github.com/Transia-RnD"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.6.2",
     "gh-pages": "^6.1.1"
   }
 }
