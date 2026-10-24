@@ -1,7 +1,10 @@
-import { DEFAULT_DEFINITIONS, XrplDefinitionsBase } from "xahau-binary-codec";
 import {
-  EncodedValue,
-  EncodedValues,
+  DEFAULT_DEFINITIONS,
+  type XrplDefinitionsBase,
+} from "xahau-binary-codec";
+import {
+  type EncodedValue,
+  type EncodedValues,
   txJsonToEncodedValues,
 } from "./txJsonToEncodedValues";
 
@@ -27,8 +30,8 @@ function addDefaultFields(jsonData: any): any {
     Account: "rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn",
   };
   if (jsonData.Destination) {
-    // @ts-ignore
-    defaults["DestinationTag"] = 0;
+    // @ts-expect-error
+    defaults.DestinationTag = 0;
   }
 
   // Create a new object to hold the sorted fields
@@ -36,17 +39,17 @@ function addDefaultFields(jsonData: any): any {
 
   // Add fields from approveList in order, using values from jsonData or defaults
   approveList.forEach((field) => {
-    if (jsonData.hasOwnProperty(field)) {
+    if (Object.hasOwn(jsonData, field)) {
       sortedJsonData[field] = jsonData[field];
-    } else if (defaults.hasOwnProperty(field)) {
-      // @ts-ignore
+    } else if (Object.hasOwn(defaults, field)) {
+      // @ts-expect-error
       sortedJsonData[field] = defaults[field];
     }
   });
 
   // Add any additional fields from jsonData that are not in approveList
   Object.keys(jsonData).forEach((key) => {
-    if (!sortedJsonData.hasOwnProperty(key)) {
+    if (!Object.hasOwn(sortedJsonData, key)) {
       sortedJsonData[key] = jsonData[key];
     }
   });
@@ -54,12 +57,12 @@ function addDefaultFields(jsonData: any): any {
   return sortedJsonData;
 }
 
-function abbreviateCamelCase(variableName: string, limit: number = 4): string {
+function abbreviateCamelCase(variableName: string, _limit: number = 4): string {
   if (variableName.endsWith("_OUT")) return variableName;
 
   // If the variable name is less than 6 characters, uppercase the whole word and append "_OUT"
   if (variableName.length <= 7) {
-    return variableName.toUpperCase() + "_OUT";
+    return `${variableName.toUpperCase()}_OUT`;
   }
 
   switch (variableName) {
@@ -132,7 +135,7 @@ function abbreviateCamelCase(variableName: string, limit: number = 4): string {
     case "RawTransaction":
       return "RAWTX_OUT";
     default:
-      return variableName.toUpperCase() + "_OUT";
+      return `${variableName.toUpperCase()}_OUT`;
   }
 }
 
@@ -208,8 +211,8 @@ function addToMacroDict(
     .join("_");
 
   let out_name = abbreviateCamelCase(encoded.name);
-  if (parentNames.length > 0) out_name = parentNamesStr + "_" + out_name;
-  if (isVec256Inner) out_name = parentNamesStr + "_OUT";
+  if (parentNames.length > 0) out_name = `${parentNamesStr}_${out_name}`;
+  if (isVec256Inner) out_name = `${parentNamesStr}_OUT`;
 
   if (!nonApproveList.includes(encoded.name)) {
     return {
@@ -250,7 +253,7 @@ export function buildHookTx(
   const IOUAmountFields: string[] = [];
   const IOUIssueFields: string[] = [];
   const jsonData = addDefaultFields(txJson);
-  let macroDict: Record<
+  const macroDict: Record<
     string,
     { name: string; out_name: string; offset: number }
   > = {};
@@ -293,7 +296,7 @@ export function buildHookTx(
 
     const formatField = (encoded: EncodedValue) => {
       const toZeroNumArray = (length: number) =>
-        Array.from({ length }, (_, i) => 0).join(",");
+        Array.from({ length }, (_, _i) => 0).join(",");
       const toHexStringArray = (array: number[]) =>
         array
           .map((c) => `0x${c.toString(16).toUpperCase().padStart(2, "0")}U`)
@@ -304,19 +307,17 @@ export function buildHookTx(
         ? toZeroNumArray(encoded.encoded.value.length)
         : toHexStringArray(encoded.encoded.value);
       if (encoded.type === "Vector256") value = ""; // output in other place
-      return (
-        [header, length, value].filter((item) => item !== "").join(", ") + ","
-      );
+      return `${[header, length, value].filter((item) => item !== "").join(", ")},`;
     };
     const formatEndMaker = (encoded: EncodedValue) => {
       const toHexStringArray = (array: number[]) =>
         array
           .map((c) => `0x${c.toString(16).toUpperCase().padStart(2, "0")}U`)
           .join(", ");
-      return toHexStringArray(encoded.encoded.endMaker || []) + ",";
+      return `${toHexStringArray(encoded.encoded.endMaker || [])},`;
     };
 
-    tarray.push(formatFieldComment(encoded) + formatField(encoded) + "\n");
+    tarray.push(`${formatFieldComment(encoded) + formatField(encoded)}\n`);
 
     const result = addToMacroDict(encoded, offset);
     if (result) {
@@ -326,7 +327,7 @@ export function buildHookTx(
     byteTotal += byteLength;
     offset += byteLength;
 
-    let depth = 0;
+    const depth = 0;
 
     // eslint-disable-next-line no-loop-func
     const processChildren = (
@@ -336,7 +337,7 @@ export function buildHookTx(
     ) => {
       if (encoded.children) {
         depth++;
-        let parentAbbrv = "  ".repeat(depth) + ".";
+        let parentAbbrv = `${"  ".repeat(depth)}.`;
         encoded.children.forEach((values: EncodedValues, index: number) => {
           for (const child in values) {
             const newParentNames = [...parentNames];
@@ -364,7 +365,7 @@ export function buildHookTx(
           }
         });
         depth--;
-        parentAbbrv = "  ".repeat(depth) + ".";
+        parentAbbrv = `${"  ".repeat(depth)}.`;
         tarray.push(
           formatFieldComment(encoded, parentAbbrv, ".end") +
             formatEndMaker(encoded) +
@@ -400,7 +401,7 @@ export function buildHookTx(
             macroDict[result.out_name] = result;
           }
 
-          const parentAbbrv = "  ".repeat(depth + 1) + ".";
+          const parentAbbrv = `${"  ".repeat(depth + 1)}.`;
           tarray.push(
             formatFieldComment(tmp_encoded, parentAbbrv) +
               formatField(tmp_encoded) +
@@ -435,7 +436,7 @@ export function buildHookTx(
     SAMPLES = 7,
   }
 
-  let texts: string[] = Array(TEXT_INDEX.SAMPLES + 1).fill("");
+  const texts: string[] = Array(TEXT_INDEX.SAMPLES + 1).fill("");
   texts[TEXT_INDEX.TXN] += "// clang-format off\n";
   texts[TEXT_INDEX.TXN] += `uint8_t txn[${byteTotal}] =\n`;
   texts[TEXT_INDEX.TXN] += "{\n";
@@ -449,7 +450,7 @@ export function buildHookTx(
     out_name: abbreviateCamelCase("EmitDetails"),
     offset: offset,
   };
-  macroDict["EmitDetails"] = result;
+  macroDict.EmitDetails = result;
   texts[TEXT_INDEX.TXN] +=
     `/*  ${emitTotal},  ${offset.toString().padStart(3, " ")}, emit details             */ \n`;
   offset += emitTotal;
@@ -514,6 +515,7 @@ export function buildHookTx(
     }
   }
   const uint32Fields = filterArgsByFieldType("UInt32");
+  // biome-ignore lint/correctness/noConstantCondition: FLS/LLS are always emitted
   if (uint32Fields.length > 0 || true /* force as FLS and LLS */) {
     texts[TEXT_INDEX.MACROS] += `
 #define FLIP_ENDIAN_32(value)                                                  \\
@@ -567,6 +569,7 @@ export function buildHookTx(
     }
   }
   const amountFields = filterArgsByFieldType("Amount");
+  // biome-ignore lint/correctness/noConstantCondition: Fee is always emitted
   if (amountFields.length > 0 || true /* force as Fee */) {
     texts[TEXT_INDEX.SET_FIELDS] += `
 #define SET_NATIVE_AMOUNT(ptr, amount)                                         \\

@@ -1,5 +1,3 @@
-import React from "react";
-
 // Define the shape of the results prop
 type JsonTextAreaProps = {
   value: string;

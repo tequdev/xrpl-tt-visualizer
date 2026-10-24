@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 // Define the shape of the results prop
 type JsonTextAreaProps = {
@@ -19,7 +19,7 @@ const JsonTextArea = ({ onConvert }: JsonTextAreaProps) => {
         throw Error("Empty Json Object");
       }
       setIsValidJson(true);
-    } catch (error) {
+    } catch (_error) {
       setIsValidJson(false);
     }
   };

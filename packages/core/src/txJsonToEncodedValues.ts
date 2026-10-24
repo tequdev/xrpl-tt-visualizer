@@ -1,7 +1,7 @@
 import {
   DEFAULT_DEFINITIONS,
   encode,
-  XrplDefinitionsBase,
+  type XrplDefinitionsBase,
 } from "xahau-binary-codec";
 
 export type EncodedValue = {

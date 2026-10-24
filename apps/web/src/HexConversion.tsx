@@ -1,36 +1,35 @@
-import React, { useEffect, useState } from "react";
-import JsonTextArea from "./components/JsonTextArea";
-import HookTextArea from "./components/HookTextArea";
+import type React from "react";
+import { useEffect, useState } from "react";
 import {
   buildHookTx,
   definitionsFromJson,
-  XrplDefinitionsBase,
+  type XrplDefinitionsBase,
 } from "xahau-hook-tx-builder";
+import HookTextArea from "./components/HookTextArea";
+import JsonTextArea from "./components/JsonTextArea";
 
 const HexConversion: React.FC = () => {
   const [hexOutput, setHexOutput] = useState<string>("");
   const [defs, setDefs] = useState<XrplDefinitionsBase | undefined>(undefined);
   useEffect(() => {
     const strip = (html: string) => {
-      let doc = new DOMParser().parseFromString(html, "text/html");
+      const doc = new DOMParser().parseFromString(html, "text/html");
       return doc.body.textContent || "";
     };
     let url = "https://xahau.network/server_definitions.json";
 
     const searchUrl = window.location.search.substr(1);
-    if (!(searchUrl === undefined || ("" + searchUrl).trim() === ""))
+    if (!(searchUrl === undefined || `${searchUrl}`.trim() === ""))
       url = strip(searchUrl);
 
     fetch(url)
-      .then(function (response) {
-        return response.json();
-      })
-      .then(function (jsonResponse) {
+      .then((response) => response.json())
+      .then((jsonResponse) => {
         setDefs(definitionsFromJson(jsonResponse));
       })
       .catch((e) => {
         console.log(e);
-        throw new Error("Could not load: " + strip(url));
+        throw new Error(`Could not load: ${strip(url)}`);
       });
   }, []);
 
