@@ -1,4 +1,4 @@
-import { encode, XrplDefinitionsBase } from "xahau-binary-codec"
+import { DEFAULT_DEFINITIONS, encode, XrplDefinitionsBase } from "xahau-binary-codec"
 
 export type EncodedValue = {
     name: string
@@ -31,7 +31,7 @@ const getVarLengthLength = (bytes: number[]) => {
   return 3
 }
 
-const txJsonToEncodedValues = (txJson: Record<string, any>, definitions:XrplDefinitionsBase) => {
+const txJsonToEncodedValues = (txJson: Record<string, any>, definitions: XrplDefinitionsBase = DEFAULT_DEFINITIONS) => {
   const encodedValues = {} as EncodedValues
   let offset = 0
   Object.keys(txJson).forEach((key) => {

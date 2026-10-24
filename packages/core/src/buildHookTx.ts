@@ -1,9 +1,5 @@
-import React, { useEffect, useState } from "react";
-import JsonTextArea from "./utils/JsonTextArea";
-import HookTextArea from "./utils/HookTextArea";
-import { coreTypes, DEFAULT_DEFINITIONS, XrplDefinitionsBase } from "xahau-binary-codec";
-import { EncodedValue, EncodedValues, txJsonToEncodedValues } from "./utils/txJsonToEncodedValues";
-
+import { DEFAULT_DEFINITIONS, XrplDefinitionsBase } from "xahau-binary-codec";
+import { EncodedValue, EncodedValues, txJsonToEncodedValues } from "./txJsonToEncodedValues";
 
 function formatAbbrv(fieldStringValue: string, fieldName: string): string {
   switch (fieldName) {
@@ -238,56 +234,27 @@ const autofilltList = [
   'Flags',
 ]
 
-const HexConversion: React.FC = () => {
-  const [hexOutput, setHexOutput] = useState<string>("");
-  const [defs, setDefs] = useState<XrplDefinitionsBase>(DEFAULT_DEFINITIONS);
-  let IOUAmountFields: string[] = [];
-  let IOUIssueFields: string[] = [];
-  
-  useEffect(() => {
-    const strip = (html: string) => {
-      let doc = new DOMParser().parseFromString(html, 'text/html');
-      return doc.body.textContent || "";
-    }
-    let url = 'https://xahau.network/server_definitions.json'
-    
-    const searchUrl = window.location.search.substr(1)
-    if (!(searchUrl === undefined || (''+searchUrl).trim() === ''))
-      url = strip(searchUrl)
-
-    fetch(url)
-    .then(function(response) {
-        return response.json();
-    })
-    .then(function (jsonResponse) {
-      let defJson: string
-      if (Object.keys(jsonResponse).length === 1 && jsonResponse.result)
-        defJson = jsonResponse.result
-      else
-        defJson = jsonResponse
-      setDefs(new XrplDefinitionsBase(defJson as any, coreTypes))
-    }).catch(e=>{
-        console.log(e);
-        throw new Error("Could not load: " + strip(url));
-    });
-    
-   },[])
-  
-  const handleOnConvert = (json: any, hasCallback: boolean) => {
-    const jsonData = addDefaultFields(JSON.parse(json))
+export function buildHookTx(
+  txJson: Record<string, unknown>,
+  options: { definitions?: XrplDefinitionsBase; hasCallback?: boolean } = {},
+): string {
+  const { definitions = DEFAULT_DEFINITIONS, hasCallback = false } = options
+  const IOUAmountFields: string[] = [];
+  const IOUIssueFields: string[] = [];
+  const jsonData = addDefaultFields(txJson)
     let macroDict: Record<string, { name: string; out_name: string; offset: number; }> = {}
     let byteTotal = 0
     let offset = 0
     const tarray: string[] = []
     
-    const encodedValues = txJsonToEncodedValues(jsonData, defs)
+    const encodedValues = txJsonToEncodedValues(jsonData, definitions)
 
     for (const key in encodedValues) {
       // Perform any additional processing with the key and value here
       const encoded = encodedValues[key]
 
-      const field = defs.field.fromString(key).name
-      const type = defs.field.fromString(key).type.name
+      const field = definitions.field.fromString(key).name
+      const type = definitions.field.fromString(key).type.name
 
       let byteLength = encoded.byteLength
       if (encoded.type === 'Vector256')
@@ -474,7 +441,7 @@ const HexConversion: React.FC = () => {
 
     texts[TEXT_INDEX.SAMPLES] += "\n/* \n"
     const filterArgsByFieldType = (type: string) =>
-      Object.keys(args).filter((name) => defs.field.fromString(args[name].name).type.name === type)
+      Object.keys(args).filter((name) => definitions.field.fromString(args[name].name).type.name === type)
 
     const uint16Fields = filterArgsByFieldType("UInt16")
     if (uint16Fields.length > 0) {
@@ -694,19 +661,5 @@ const HexConversion: React.FC = () => {
     texts[TEXT_INDEX.SAMPLES] += "int64_t emit_result = emit(SBUF(emithash), SBUF(txn)); \n"
     texts[TEXT_INDEX.SAMPLES] += "*/ \n"
 
-    setHexOutput(texts.join(''))
-  };
-
-  return (
-    <div>
-      <h1>Xahau Hook Tx Builder</h1>
-      <p>Paste a json Xahau tx below to convert it to a c hook binary tx.</p>
-      <p>To use custom definitions, specify the path to the JSON file as follows:<br/>
-      https://tx-builder.xahau.tools/?https://example.com/definitions.json</p>
-      <JsonTextArea onConvert={handleOnConvert} />
-      <HookTextArea value={hexOutput} />
-    </div>
-  );
-};
-
-export default HexConversion;
+    return texts.join('')
+}

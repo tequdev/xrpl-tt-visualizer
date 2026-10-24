@@ -1,4 +1,5 @@
-import { txJsonToEncodedValues } from '../utils/txJsonToEncodedValues'
+import { describe, it, expect } from 'vitest'
+import { txJsonToEncodedValues } from './txJsonToEncodedValues'
 
 describe('txJsonToEncodedValues', () => {
   it('should return the encoded values', () => {
