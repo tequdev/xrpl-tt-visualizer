@@ -1,6 +1,6 @@
 .DS_Store
-build
+dist
 # config.json
 node_modules
-/dist
+dist
 aube-lock.yaml
