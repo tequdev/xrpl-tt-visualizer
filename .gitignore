@@ -2,5 +2,4 @@
 dist
 # config.json
 node_modules
-dist
 aube-lock.yaml
