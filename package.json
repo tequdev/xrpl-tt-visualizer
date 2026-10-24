@@ -3,7 +3,7 @@
   "scripts": {
     "dev": "pnpm --filter xahau-hook-tx-builder build && pnpm --filter web dev",
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
+    "test": "pnpm --filter xahau-hook-tx-builder test",
     "predeploy": "pnpm build",
     "deploy": "gh-pages -d apps/web/dist"
   },

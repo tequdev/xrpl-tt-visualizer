@@ -10,7 +10,9 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run"
@@ -19,7 +21,7 @@
     "xahau-binary-codec": "^2.3.0"
   },
   "devDependencies": {
-    "typescript": "^5.1.6",
-    "vitest": "^3.2.4"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
   }
 }
