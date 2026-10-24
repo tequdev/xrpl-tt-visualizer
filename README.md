@@ -36,7 +36,10 @@ pnpm test    # run the library tests
 ## Library
 
 ```ts
-import { buildHookTx } from 'xahau-hook-tx-builder'
+import { buildHookTx } from "xahau-hook-tx-builder";
 
-const c = buildHookTx({ TransactionType: 'Payment', Destination: 'r...', Amount: '1' }, { hasCallback: false })
+const c = buildHookTx(
+  { TransactionType: "Payment", Destination: "r...", Amount: "1" },
+  { hasCallback: false },
+);
 ```
