@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: CI
 
 on:
   push:
@@ -8,12 +8,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  check:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pages: write
-      id-token: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -30,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
+      - name: Lint & format check (biome ci)
         run: pnpm lint
 
       - name: Test
@@ -38,11 +36,3 @@ jobs:
 
       - name: Build
         run: pnpm build
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        if: github.ref == 'refs/heads/tequ'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./apps/web/dist
-          cname: tx-builder.xahau.tools
